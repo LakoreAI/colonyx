@@ -10,8 +10,8 @@ __version__ = "0.1.0"
 __author__ = "Minh, Le Duc"
 __email__ = "minh.leduc.0210@gmail.com"
 
-# Import the main interface (will be implemented)
-# from .auto import AutoColony
+# Import the main interface
+from .auto import AutoColony
 
 # Import individual algorithms (will be implemented)
 # from .algorithms import AntColonyOptimizer, ParticleSwarmOptimizer, ArtificialBeeColonyOptimizer
@@ -23,7 +23,7 @@ __email__ = "minh.leduc.0210@gmail.com"
 # from .datasets import load_tsp_data, benchmark_functions
 
 __all__ = [
-    # "AutoColony",
+    "AutoColony",
     # "AntColonyOptimizer", 
     # "ParticleSwarmOptimizer",
     # "ArtificialBeeColonyOptimizer",

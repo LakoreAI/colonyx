@@ -16,13 +16,32 @@
 ```
 
 colonyx/
-├── colonyx/          # Python package directory 
-│   └── __init__.py   # Python module initialization
-├── src/              # Rust core implementation
-│   └── lib.rs        # Rust library code
-├── Cargo.toml        # Rust package configuration
-├── pyproject.toml    # Python package configuration
-└── docs/
-    └── TODO.md       # Your detailed TODO list
+├── src/                        # Rust core implementation
+│   ├── lib.rs                  # Main library entry point
+│   ├── algorithms/             # Algorithm implementations
+│   │   ├── mod.rs             # Algorithms module
+│   │   ├── base.rs            # Base traits and types
+│   │   ├── aco.rs             # Ant Colony Optimization
+│   │   ├── pso.rs             # Particle Swarm Optimization
+│   │   └── abc.rs             # Artificial Bee Colony
+│   ├── core/                  # Core optimization structures
+│   │   ├── mod.rs
+│   │   ├── problem.rs         # Problem definitions
+│   │   └── solution.rs        # Solution representations
+│   ├── utils/                 # Utilities
+│   │   ├── mod.rs
+│   │   └── math.rs            # Math utilities
+│   └── bindings.rs            # Python bindings
+│
+├── colonyx/                   # Python package
+│   ├── __init__.py           # Main exports
+│   ├── auto.py               # AutoColony class
+│   ├── base.py               # Base classes
+│   ├── utils.py              # Python utilities
+│   └── datasets.py           # Benchmark datasets
+│
+├── examples/                  # Usage examples
+├── tests/                     # Tests
+└── docs/                      # Documentation
 
 ```
