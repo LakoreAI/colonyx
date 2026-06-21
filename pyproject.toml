@@ -5,13 +5,16 @@ build-backend = "maturin"
 [project]
 name = "colonyx"
 requires-python = ">=3.8"
+description = "A Pythonic toolkit for Ant Colony, Particle Swarm, and Bee Colony optimization — written in Rust for high performance, designed for real-world use."
+readme = "README.md"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
+
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
-python-source = "python"
-compatibility = "py38, py39, py310, py311, py312"
+python-source = "colonyx"

@@ -1,5 +1,10 @@
 use pyo3::prelude::*;
 
+// Core modules
+pub mod core;
+pub mod algorithms;
+pub mod utils;
+
 /// Formats the sum of two numbers as string.
 #[pyfunction]
 fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
