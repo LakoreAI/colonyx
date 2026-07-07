@@ -539,3 +539,57 @@
 - [ ] Support Python 3.8+ and major platforms
 - [ ] Zero critical security vulnerabilities
 - [ ] Documentation completeness >90%
+
+---
+
+## **Algorithm Backlog & Point Estimates**
+
+> **Status:** ACO, PSO and ABC are implemented end-to-end (Rust core → pyo3
+> bindings → `AutoColony` → tests). The items below are the next algorithms to
+> add, using the same pattern.
+
+**Point scale (Fibonacci, relative effort).** Each point ≈ one focused unit of
+work. Every algorithm estimate already includes the full slice: Rust core
+(`Optimizer` impl) + pyo3 binding + `AutoColony` wiring + Rust & pytest tests.
+
+| Points | Meaning |
+| ------ | ------------------------------------------------------ |
+| 1 | Trivial, mechanical |
+| 2 | Easy — a small self-contained update rule |
+| 3 | Moderate — some fiddly bits or a new sub-mechanism |
+| 5 | Involved — a real algorithm with several phases |
+| 8 | Hard — nontrivial math or new infrastructure |
+| 13 | Large — a whole subsystem across multiple files |
+
+Continuous algorithms reuse the existing Python-callable objective bridge and
+`Bounds`, so they are cheaper than the discrete or multi-objective work.
+
+### **Continuous (reuse objective bridge) — total 35 pts**
+- [ ] **Grey Wolf Optimizer (GWO)** — 2 pts · popular, compact update rule
+- [ ] **Differential Evolution (DE)** — 2 pts · simple and genuinely strong; a good default
+- [ ] **Firefly (FA)** — 2 pts · roadmap algorithm, PSO-shaped
+- [ ] **Simulated Annealing (SA)** — 2 pts · single-solution, fits the interface cleanly
+- [ ] **Cuckoo Search (CS)** — 3 pts · Lévy-flight steps
+- [ ] **Bat Algorithm (BA)** — 3 pts · frequency/loudness/pulse-rate tuning
+- [ ] **Glowworm (GSO)** — 5 pts · roadmap algorithm, luciferin + dynamic neighborhoods
+- [ ] **Bacterial Foraging (BFO)** — 8 pts · roadmap algorithm, chemotaxis/reproduction/elimination
+- [ ] **CMA-ES** — 8 pts · strongest continuous optimizer, real covariance-adaptation math
+
+### **Discrete / combinatorial (moderate new work) — total 15 pts**
+- [ ] **2-opt local search** — 2 pts · cheap ACO tour-improvement hybrid
+- [ ] **Binary/Discrete PSO** — 3 pts · reuses PSO structure
+- [ ] **ACO variants** (Ant Colony System, Max-Min AS, Elitist) — 5 pts · extend existing `aco.rs`
+- [ ] **Genetic Algorithm (GA) for permutations/TSP** — 5 pts · order-crossover + mutation on tours
+
+### **Multi-objective (new infrastructure) — total 18 pts**
+- [ ] **Pareto infrastructure** (non-dominated sorting, crowding distance, archive) — 8 pts · prerequisite
+- [ ] **NSGA-II** — 5 pts · builds on the Pareto infrastructure
+- [ ] **MOPSO** — 5 pts · multi-objective PSO on the same infrastructure
+
+### **Notes on priority**
+- **Best value first:** DE, GWO (continuous) and 2-opt (discrete) — high impact, low points.
+- Several trendy "metaphor" algorithms (Whale, Moth-Flame, Salp Swarm, Grasshopper)
+  are largely PSO/DE re-dressed; implementable at ~2 pts each but **low priority** —
+  they add breadth without much real capability.
+- **Grand total for everything above: 68 pts.** A sensible first milestone is the
+  35-pt continuous set (it needs no new infrastructure).

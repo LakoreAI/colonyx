@@ -4,6 +4,12 @@ pub trait Problem {
     fn dimensions(&self) -> usize;
     fn is_discrete(&self) -> bool;
     fn name(&self) -> &str;
+
+    /// Distance matrix for discrete (graph) problems, used by construction
+    /// heuristics such as ACO. Continuous problems return `None`.
+    fn distance_matrix(&self) -> Option<&[Vec<f64>]> {
+        None
+    }
 }
 
 /// Continuous problem (PSO, ABC)
@@ -66,8 +72,12 @@ impl Problem for DiscreteProblem {
     fn is_discrete(&self) -> bool {
         true
     }
-    
+
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn distance_matrix(&self) -> Option<&[Vec<f64>]> {
+        Some(&self.distance_matrix)
     }
 } 
