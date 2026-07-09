@@ -33,15 +33,15 @@ impl Problem for ContinuousProblem {
     fn evaluate(&self, solution: &[f64]) -> f64 {
         (self.objective_function)(solution)
     }
-    
+
     fn dimensions(&self) -> usize {
         self.dimensions
     }
-    
+
     fn is_discrete(&self) -> bool {
         false
     }
-    
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -64,11 +64,11 @@ impl Problem for DiscreteProblem {
         }
         total
     }
-    
+
     fn dimensions(&self) -> usize {
         self.distance_matrix.len()
     }
-    
+
     fn is_discrete(&self) -> bool {
         true
     }
@@ -80,4 +80,4 @@ impl Problem for DiscreteProblem {
     fn distance_matrix(&self) -> Option<&[Vec<f64>]> {
         Some(&self.distance_matrix)
     }
-} 
+}

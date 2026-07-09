@@ -1,5 +1,5 @@
+use crate::algorithms::base::{OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
-use crate::algorithms::base::{Optimizer, OptimizationError};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
@@ -120,7 +120,9 @@ impl Optimizer for BeeColony {
         let ranges = self.bounds.ranges();
 
         // Initialize food sources.
-        let mut sources: Vec<Vec<f64>> = (0..sn).map(|_| self.random_source(&ranges, &mut rng)).collect();
+        let mut sources: Vec<Vec<f64>> = (0..sn)
+            .map(|_| self.random_source(&ranges, &mut rng))
+            .collect();
         let mut objective: Vec<f64> = sources.iter().map(|s| problem.evaluate(s)).collect();
         let mut trials = vec![0usize; sn];
 
@@ -136,7 +138,14 @@ impl Optimizer for BeeColony {
         for _ in 0..self.n_iterations {
             // Employed bee phase: one candidate per source.
             for i in 0..sn {
-                self.exploit_source(&mut sources, &mut objective, &mut trials, i, problem, &mut rng);
+                self.exploit_source(
+                    &mut sources,
+                    &mut objective,
+                    &mut trials,
+                    i,
+                    problem,
+                    &mut rng,
+                );
             }
 
             // Onlooker bee phase: SN candidates, sources chosen by roulette wheel.

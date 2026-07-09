@@ -1,5 +1,5 @@
+use crate::algorithms::base::{OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
-use crate::algorithms::base::{Optimizer, OptimizationError};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;

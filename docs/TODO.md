@@ -1,10 +1,10 @@
 # **colonyx — Comprehensive TODO List for Scikit-Learn Compatible Swarm Intelligence Library**
 
-> **Note**: This library uses a unified interface called `AutoColony` (similar to HuggingFace's `AutoModel`) as the main entry point, with individual algorithms (ACO, PSO, ABC) selected via the `mode` parameter.
+> **Note**: This library uses a unified interface called `AutoColony` (similar to HuggingFace's `AutoModel`) as the main entry point, with individual algorithms (ACO, PSO, ABC, GWO, FA, SA, CS, BA, GSO, DE) selected via the `mode` parameter.
 
 ## **Architecture Overview**
 - **Main Interface**: `AutoColony` class with `mode` parameter for algorithm selection
-- **Algorithm Modes**: 'aco', 'pso', 'abc', 'auto' (auto-selects based on problem type)
+- **Algorithm Modes**: 'aco', 'pso', 'abc', 'gwo', 'fa', 'sa', 'cs', 'ba', 'gso', 'de', 'auto' (auto-selects based on problem type)
 - **Scikit-Learn Compatible**: Follows sklearn's `BaseEstimator` interface
 - **HuggingFace-style**: Single class with mode switching like `AutoModel`
 
@@ -61,14 +61,14 @@
 ## **Phase 1: Base Classes & Scikit-Learn Interface (Sprint 1)**
 
 ### **1.1 Unified Interface Implementation**
-- [ ] **AutoColony Class (Python) - Main Interface**
-  - [ ] Implement `__init__(mode='auto', **kwargs)` with mode parameter
-  - [ ] Add algorithm selection via `mode`: 'aco', 'pso', 'abc', 'auto'
-  - [ ] Implement automatic algorithm selection based on problem type
-  - [ ] Add parameter validation specific to each algorithm mode
-  - [ ] Implement dynamic parameter routing to underlying algorithms
-  - [ ] Add mode-specific parameter constraints and validation
-  - [ ] Support algorithm-specific parameters with clear documentation
+- [x] **AutoColony Class (Python) - Main Interface**
+  - [x] Implement `__init__(mode='auto', **kwargs)` with mode parameter
+  - [x] Add algorithm selection via `mode`: 'aco', 'pso', 'abc', 'auto'
+  - [x] Implement automatic algorithm selection based on problem type
+  - [x] Add parameter validation specific to each algorithm mode
+  - [x] Implement dynamic parameter routing to underlying algorithms
+  - [x] Add mode-specific parameter constraints and validation
+  - [x] Support algorithm-specific parameters with clear documentation
 
 - [ ] **BaseOptimizer Abstract Class (Python)**
   - [ ] Implement `__init__` with parameter validation
@@ -189,19 +189,19 @@
   - [ ] **Not exposed directly - accessed via AutoColony(mode='pso')**
 
 - [ ] **Objective Function Handling**
-  - [ ] Support for callable Python functions
-  - [ ] Add built-in benchmark functions
+  - [x] Support for callable Python functions
+  - [x] Add built-in benchmark functions
   - [ ] Implement function evaluation caching
   - [ ] Add gradient-based acceleration (if available)
   - [ ] Support for noisy objective functions
 
 ### **3.3 Testing & Validation**
 - [ ] **Comprehensive Test Suite**
-  - [ ] Test on standard benchmark functions
-  - [ ] Validate convergence behavior
+  - [x] Test on standard benchmark functions
+  - [x] Validate convergence behavior
   - [ ] Test parameter sensitivity
   - [ ] Benchmark against scipy.optimize
-  - [ ] Test with different problem dimensions
+  - [x] Test with different problem dimensions
 
 ---
 
@@ -231,32 +231,32 @@
 ## **Phase 5: Scikit-Learn Integration & Compatibility (Sprint 5)**
 
 ### **5.1 Estimator Compliance**
-- [ ] **Scikit-Learn Estimator Interface**
-  - [ ] Implement `sklearn.base.BaseEstimator` compliance
-  - [ ] Add `sklearn.base.OptimizerMixin` (custom mixin)
-  - [ ] Ensure parameter validation follows sklearn patterns
-  - [ ] Add `_check_is_fitted()` method
-  - [ ] Implement proper `__sklearn_tags__()` method
+- [x] **Scikit-Learn Estimator Interface**
+  - [x] Implement `sklearn.base.BaseEstimator` compliance
+  - [x] Add `sklearn.base.OptimizerMixin` (custom mixin)
+  - [x] Ensure parameter validation follows sklearn patterns
+  - [x] Add `_check_is_fitted()` method
+  - [x] Implement proper `__sklearn_tags__()` method
 
-- [ ] **Pipeline Integration**
-  - [ ] Test integration with `sklearn.pipeline.Pipeline`
-  - [ ] Add transformer interface for problem preprocessing
-  - [ ] Implement `sklearn.model_selection` compatibility
-  - [ ] Add support for `sklearn.compose` utilities
+- [x] **Pipeline Integration**
+  - [x] Test integration with `sklearn.pipeline.Pipeline`
+  - [x] Add transformer interface for problem preprocessing
+  - [x] Implement `sklearn.model_selection` compatibility
+  - [x] Add support for `sklearn.compose` utilities
 
 ### **5.2 Cross-Validation & Model Selection**
-- [ ] **Custom Scoring Functions**
-  - [ ] Implement optimization-specific scoring metrics
-  - [ ] Add convergence rate scoring
-  - [ ] Create diversity metrics for population-based algorithms
-  - [ ] Add robustness scoring for noisy problems
+- [x] **Custom Scoring Functions**
+  - [x] Implement optimization-specific scoring metrics
+  - [x] Add convergence rate scoring
+  - [x] Create diversity metrics for population-based algorithms
+  - [x] Add robustness scoring for noisy problems
 
 - [ ] **Grid Search Integration**
-  - [ ] Ensure `GridSearchCV` compatibility with unified interface
-  - [ ] Add `RandomizedSearchCV` support for all modes
-  - [ ] Implement custom parameter distributions for each algorithm
-  - [ ] Add optimization-specific cross-validation strategies
-  - [ ] Support mode-specific parameter grids
+  - [x] Ensure `GridSearchCV` compatibility with unified interface
+  - [x] Add `RandomizedSearchCV` support for all modes
+  - [x] Implement custom parameter distributions for each algorithm
+  - [x] Add optimization-specific cross-validation strategies
+  - [x] Support mode-specific parameter grids
   - [ ] **Example Grid Search Usage:**
     ```python
     from sklearn.model_selection import GridSearchCV
@@ -274,26 +274,26 @@
     ```
 
 ### **5.3 Utility Functions**
-- [ ] **Validation Utilities**
-  - [ ] Implement `check_optimization_problem()` function
-  - [ ] Add `check_bounds()` validation
-  - [ ] Create `check_objective_function()` utility
-  - [ ] Add dimension consistency checks
+- [x] **Validation Utilities**
+  - [x] Implement `check_optimization_problem()` function
+  - [x] Add `check_bounds()` validation
+  - [x] Create `check_objective_function()` utility
+  - [x] Add dimension consistency checks
 
 ### **1.3 Unified Interface Design & Auto-Selection**
-- [ ] **Algorithm Auto-Selection Logic**
-  - [ ] Implement problem type detection (continuous vs discrete)
-  - [ ] Add dimensionality analysis for algorithm suitability
-  - [ ] Create heuristics for automatic algorithm selection
-  - [ ] Support user override of auto-selection
-  - [ ] Add performance-based algorithm recommendation
+- [x] **Algorithm Auto-Selection Logic**
+  - [x] Implement problem type detection (continuous vs discrete)
+  - [x] Add dimensionality analysis for algorithm suitability
+  - [x] Create heuristics for automatic algorithm selection
+  - [x] Support user override of auto-selection
+  - [x] Add performance-based algorithm recommendation
 
-- [ ] **Parameter Mapping & Validation**
-  - [ ] Create parameter mapping between unified and algorithm-specific interfaces
-  - [ ] Implement parameter conflict resolution
-  - [ ] Add parameter suggestion system for different algorithms
-  - [ ] Support algorithm-specific parameter validation
-  - [ ] Add parameter documentation and help system
+- [x] **Parameter Mapping & Validation**
+  - [x] Create parameter mapping between unified and algorithm-specific interfaces
+  - [x] Implement parameter conflict resolution
+  - [x] Add parameter suggestion system for different algorithms
+  - [x] Support algorithm-specific parameter validation
+  - [x] Add parameter documentation and help system
 
 - [ ] **Unified Interface Examples**
   ```python
@@ -317,30 +317,30 @@
 ## **Phase 6: Metrics & Evaluation Framework (Sprint 6)**
 
 ### **6.1 Optimization Metrics**
-- [ ] **Performance Metrics**
-  - [ ] Implement convergence rate calculation
-  - [ ] Add success rate metrics
-  - [ ] Create optimization gap metrics
-  - [ ] Add computational efficiency metrics
+- [x] **Performance Metrics**
+  - [x] Implement convergence rate calculation
+  - [x] Add success rate metrics
+  - [x] Create optimization gap metrics
+  - [x] Add computational efficiency metrics
 
-- [ ] **Statistical Analysis**
-  - [ ] Implement statistical significance tests
-  - [ ] Add distribution analysis for multiple runs
+- [x] **Statistical Analysis**
+  - [x] Implement statistical significance tests
+  - [x] Add distribution analysis for multiple runs
   - [ ] Create performance profiling tools
-  - [ ] Add robustness analysis utilities
+  - [x] Add robustness analysis utilities
 
 ### **6.2 Benchmark Suite**
 - [ ] **Standard Benchmark Problems**
   - [ ] Implement CEC benchmark functions
   - [ ] Add TSPLIB problem instances
-  - [ ] Create custom benchmark suite
+  - [x] Create custom benchmark suite
   - [ ] Add real-world optimization problems
 
 - [ ] **Benchmarking Framework**
-  - [ ] Create automated benchmarking pipeline
-  - [ ] Add performance comparison tools
-  - [ ] Implement result visualization
-  - [ ] Add statistical reporting
+  - [x] Create automated benchmarking pipeline
+  - [x] Add performance comparison tools
+  - [x] Implement result visualization
+  - [x] Add statistical reporting
 
 ---
 
@@ -514,22 +514,22 @@
 ## **Acceptance Criteria for Scikit-Learn Compatibility**
 
 ### **Must-Have Features**
-- [ ] **Unified Interface (`AutoColony`)** 
-  - [ ] Single class inherits from `BaseEstimator`
-  - [ ] Support `mode` parameter for algorithm selection: 'aco', 'pso', 'abc', 'auto'
-  - [ ] Automatic algorithm selection based on problem type
-  - [ ] Dynamic parameter routing to underlying algorithms
-  - [ ] Mode-specific parameter validation and constraints
-- [ ] **Scikit-Learn Compatibility**
-  - [ ] Implement `fit()`, `predict()`, `score()` methods
-  - [ ] Support `get_params()` and `set_params()` with mode-specific parameters
-  - [ ] Pass `check_estimator()` tests for all modes
-  - [ ] Work with `Pipeline` and `GridSearchCV`
-  - [ ] Follow sklearn naming conventions
-  - [ ] Implement proper parameter validation
-  - [ ] Add comprehensive docstrings
-  - [ ] Support pickle serialization
-  - [ ] Include reproducibility features (random_state)
+- [x] **Unified Interface (`AutoColony`)** 
+  - [x] Single class inherits from `BaseEstimator`
+  - [x] Support `mode` parameter for algorithm selection: 'aco', 'pso', 'abc', 'auto'
+  - [x] Automatic algorithm selection based on problem type
+  - [x] Dynamic parameter routing to underlying algorithms
+  - [x] Mode-specific parameter validation and constraints
+- [x] **Scikit-Learn Compatibility**
+  - [x] Implement `fit()`, `predict()`, `score()` methods
+  - [x] Support `get_params()` and `set_params()` with mode-specific parameters
+  - [x] Pass `check_estimator()` tests for all modes
+  - [x] Work with `Pipeline` and `GridSearchCV`
+  - [x] Follow sklearn naming conventions
+  - [x] Implement proper parameter validation
+  - [x] Add comprehensive docstrings
+  - [x] Support pickle serialization
+  - [x] Include reproducibility features (random_state)
 
 ### **Quality Metrics**
 - [ ] >95% test coverage
@@ -565,18 +565,18 @@ Continuous algorithms reuse the existing Python-callable objective bridge and
 `Bounds`, so they are cheaper than the discrete or multi-objective work.
 
 ### **Continuous (reuse objective bridge) — total 35 pts**
-- [ ] **Grey Wolf Optimizer (GWO)** — 2 pts · popular, compact update rule
-- [ ] **Differential Evolution (DE)** — 2 pts · simple and genuinely strong; a good default
-- [ ] **Firefly (FA)** — 2 pts · roadmap algorithm, PSO-shaped
-- [ ] **Simulated Annealing (SA)** — 2 pts · single-solution, fits the interface cleanly
-- [ ] **Cuckoo Search (CS)** — 3 pts · Lévy-flight steps
-- [ ] **Bat Algorithm (BA)** — 3 pts · frequency/loudness/pulse-rate tuning
-- [ ] **Glowworm (GSO)** — 5 pts · roadmap algorithm, luciferin + dynamic neighborhoods
-- [ ] **Bacterial Foraging (BFO)** — 8 pts · roadmap algorithm, chemotaxis/reproduction/elimination
+- [x] **Grey Wolf Optimizer (GWO)** — 2 pts · popular, compact update rule
+- [x] **Differential Evolution (DE)** — 2 pts · simple and genuinely strong; a good default
+- [x] **Firefly (FA)** — 2 pts · roadmap algorithm, PSO-shaped
+- [x] **Simulated Annealing (SA)** — 2 pts · single-solution, fits the interface cleanly
+- [x] **Cuckoo Search (CS)** — 3 pts · Lévy-flight steps
+- [x] **Bat Algorithm (BA)** — 3 pts · frequency/loudness/pulse-rate tuning
+- [x] **Glowworm (GSO)** — 5 pts · roadmap algorithm, luciferin + dynamic neighborhoods
+- [x] **Bacterial Foraging (BFO)** — 8 pts · roadmap algorithm, chemotaxis/reproduction/elimination
 - [ ] **CMA-ES** — 8 pts · strongest continuous optimizer, real covariance-adaptation math
 
 ### **Discrete / combinatorial (moderate new work) — total 15 pts**
-- [ ] **2-opt local search** — 2 pts · cheap ACO tour-improvement hybrid
+- [x] **2-opt local search** — 2 pts · cheap ACO tour-improvement hybrid
 - [ ] **Binary/Discrete PSO** — 3 pts · reuses PSO structure
 - [ ] **ACO variants** (Ant Colony System, Max-Min AS, Elitist) — 5 pts · extend existing `aco.rs`
 - [ ] **Genetic Algorithm (GA) for permutations/TSP** — 5 pts · order-crossover + mutation on tours

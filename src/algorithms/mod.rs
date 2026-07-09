@@ -1,10 +1,15 @@
-pub mod base;
-pub mod aco;
-pub mod pso;
 pub mod abc;
+pub mod aco;
+pub mod base;
+pub mod continuous;
+pub mod pso;
 
 // Re-export main types
-pub use base::{Optimizer, OptimizationError};
-pub use aco::AntColony;
-pub use pso::ParticleSwarm;
 pub use abc::BeeColony;
+pub use aco::AntColony;
+pub use base::{OptimizationError, Optimizer};
+pub use continuous::{
+    two_opt, BacterialForagingOptimizer, BatAlgorithm, CuckooSearch, DifferentialEvolution,
+    FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer, SimulatedAnnealing,
+};
+pub use pso::ParticleSwarm;

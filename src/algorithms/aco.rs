@@ -1,5 +1,6 @@
+use crate::algorithms::base::{OptimizationError, Optimizer};
+use crate::algorithms::continuous::two_opt;
 use crate::core::{Problem, Solution};
-use crate::algorithms::base::{Optimizer, OptimizationError};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
@@ -12,10 +13,11 @@ pub struct AntColony {
     pub n_ants: usize,
     pub n_iterations: usize,
     pub alpha: f64, // Pheromone importance
-    pub beta: f64, // Heuristic importance
-    pub rho: f64, // Evaporation rate
-    pub q: f64, // Q value for pheromone update
-    
+    pub beta: f64,  // Heuristic importance
+    pub rho: f64,   // Evaporation rate
+    pub q: f64,     // Q value for pheromone update
+    pub use_two_opt: bool,
+
     // Internal state using core types
     pheromone_matrix: Option<Vec<Vec<f64>>>,
     best_solution: Option<Solution>,
@@ -31,6 +33,7 @@ impl AntColony {
         beta: f64,
         rho: f64,
         q: f64,
+        use_two_opt: bool,
     ) -> Self {
         Self {
             n_ants,
@@ -39,12 +42,13 @@ impl AntColony {
             beta,
             rho,
             q,
+            use_two_opt,
             pheromone_matrix: None,
             best_solution: None,
             random_seed: None,
         }
     }
-    
+
     /// Set the RNG seed for reproducible runs. `None` draws from entropy.
     pub fn set_random_seed(&mut self, seed: Option<u64>) {
         self.random_seed = seed;
@@ -64,13 +68,14 @@ impl AntColony {
     fn construct_solution(&self, problem: &dyn Problem, rng: &mut StdRng) -> Solution {
         let n = problem.dimensions();
 
-        let (distances, pheromone) = match (problem.distance_matrix(), self.pheromone_matrix.as_ref()) {
-            (Some(distances), Some(pheromone)) => (distances, pheromone),
-            _ => {
-                let variables = (0..n).map(|i| i as f64).collect();
-                return Solution::new(variables);
-            }
-        };
+        let (distances, pheromone) =
+            match (problem.distance_matrix(), self.pheromone_matrix.as_ref()) {
+                (Some(distances), Some(pheromone)) => (distances, pheromone),
+                _ => {
+                    let variables = (0..n).map(|i| i as f64).collect();
+                    return Solution::new(variables);
+                }
+            };
 
         let mut visited = vec![false; n];
         let mut tour = Vec::with_capacity(n);
@@ -178,19 +183,19 @@ impl AntColony {
 
 impl Optimizer for AntColony {
     type Solution = Solution;
-    
+
     fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError> {
         if problem.dimensions() == 0 {
             return Err(OptimizationError::InvalidInput(
-                "Problem must have at least one dimension".to_string()
+                "Problem must have at least one dimension".to_string(),
             ));
         }
-        
+
         // Initialize pheromone matrix for discrete problems
         if problem.is_discrete() {
             self.initialize_pheromone_matrix(problem.dimensions());
         }
-        
+
         let mut best_fitness = f64::INFINITY;
 
         let mut rng = match self.random_seed {
@@ -205,18 +210,35 @@ impl Optimizer for AntColony {
             // Generate solutions with ants
             for _ant in 0..self.n_ants {
                 let mut solution = self.construct_solution(problem, &mut rng);
-                
+                if self.use_two_opt
+                    && problem.distance_matrix().is_some()
+                    && solution.variables.len() > 3
+                {
+                    if let Some(distance_matrix) = problem.distance_matrix() {
+                        if let Ok((tour, _length)) = two_opt(
+                            &solution
+                                .variables
+                                .iter()
+                                .map(|value| *value as usize)
+                                .collect::<Vec<_>>(),
+                            distance_matrix,
+                        ) {
+                            solution.variables = tour.into_iter().map(|city| city as f64).collect();
+                        }
+                    }
+                }
+
                 // Evaluate solution
                 let fitness = problem.evaluate(&solution.variables);
                 solution.set_fitness(fitness);
                 solution.add_metadata("iteration".to_string(), iteration.to_string());
-                
+
                 // Update best solution
                 if fitness < best_fitness {
                     best_fitness = fitness;
                     self.best_solution = Some(solution.clone());
                 }
-                
+
                 solutions.push(solution);
             }
 
@@ -226,15 +248,15 @@ impl Optimizer for AntColony {
 
         Ok(())
     }
-    
+
     fn predict(&self) -> Option<Self::Solution> {
         self.best_solution.clone()
     }
-    
+
     fn score(&self) -> Option<f64> {
         self.best_solution.as_ref().and_then(|s| s.fitness)
     }
-    
+
     fn get_params(&self) -> HashMap<String, f64> {
         let mut params = HashMap::new();
         params.insert("n_ants".to_string(), self.n_ants as f64);
@@ -276,7 +298,7 @@ mod tests {
 
     #[test]
     fn constructs_valid_permutation() {
-        let mut aco = AntColony::new(10, 20, 1.0, 2.0, 0.5, 1.0);
+        let mut aco = AntColony::new(10, 20, 1.0, 2.0, 0.5, 1.0, true);
         aco.set_random_seed(Some(1));
         aco.fit(&ring_problem(6)).unwrap();
 
@@ -288,7 +310,7 @@ mod tests {
 
     #[test]
     fn evaporation_scales_pheromone_by_one_minus_rho() {
-        let mut aco = AntColony::new(5, 1, 1.0, 2.0, 0.5, 1.0);
+        let mut aco = AntColony::new(5, 1, 1.0, 2.0, 0.5, 1.0, true);
         aco.initialize_pheromone_matrix(4);
         let before = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
@@ -302,7 +324,7 @@ mod tests {
 
     #[test]
     fn deposit_adds_symmetric_pheromone_on_used_edges() {
-        let mut aco = AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0); // rho=0 => no evaporation
+        let mut aco = AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true); // rho=0 => no evaporation
         aco.initialize_pheromone_matrix(3);
         let base = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
@@ -321,7 +343,7 @@ mod tests {
         // beta = 0 disables the distance heuristic, so reaching the optimum
         // proves the pheromone deposit/evaporation loop is doing the learning.
         let n = 8;
-        let mut aco = AntColony::new(20, 100, 1.0, 0.0, 0.5, 1.0);
+        let mut aco = AntColony::new(20, 100, 1.0, 0.0, 0.5, 1.0, true);
         aco.set_random_seed(Some(42));
         aco.fit(&ring_problem(n)).unwrap();
 
@@ -330,7 +352,7 @@ mod tests {
 
     #[test]
     fn rejects_empty_problem() {
-        let mut aco = AntColony::new(5, 10, 1.0, 2.0, 0.5, 1.0);
+        let mut aco = AntColony::new(5, 10, 1.0, 2.0, 0.5, 1.0, true);
         let empty = DiscreteProblem {
             name: "empty".to_string(),
             distance_matrix: vec![],

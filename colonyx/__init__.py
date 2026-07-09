@@ -12,9 +12,54 @@ __email__ = "minh.leduc.0210@gmail.com"
 
 # Import the compiled Rust core (built by maturin as colonyx._colonyx)
 from . import _colonyx
+from ._colonyx import (
+    BacterialForagingOptimizer,
+    BatAlgorithm,
+    BeeColony,
+    CuckooSearch,
+    DifferentialEvolution,
+    FireflyOptimizer,
+    GlowwormOptimizer,
+    GreyWolfOptimizer,
+    ParticleSwarm,
+    SimulatedAnnealing,
+    AntColony,
+    two_opt,
+)
 
 # Import the main interface
 from .auto import AutoColony
+from .base import OptimizerMixin
+from .benchmarks import (
+    BenchmarkProblem,
+    ackley,
+    benchmark_suite,
+    griewank,
+    rastrigin,
+    rosenbrock,
+    schwefel,
+    sphere,
+)
+from .metrics import (
+    BenchmarkResult,
+    aggregate_runs,
+    benchmark_optimizer,
+    benchmark_optimizers,
+    benchmark_report,
+    benchmark_visualization,
+    computational_efficiency,
+    convergence_rate,
+    distribution_analysis,
+    profile_callable,
+    profile_optimization_run,
+    ProfilingResult,
+    compare_benchmark_results,
+    optimization_gap,
+    paired_significance_test,
+    robustness_analysis,
+    success_rate,
+)
+from .utils import check_bounds, check_objective_function, check_optimization_problem
 
 # Import individual algorithms (will be implemented)
 # from .algorithms import AntColonyOptimizer, ParticleSwarmOptimizer, ArtificialBeeColonyOptimizer
@@ -27,6 +72,47 @@ from .auto import AutoColony
 
 __all__ = [
     "AutoColony",
+    "OptimizerMixin",
+    "BenchmarkProblem",
+    "benchmark_suite",
+    "two_opt",
+    "AntColony",
+    "ParticleSwarm",
+    "BeeColony",
+    "GreyWolfOptimizer",
+    "FireflyOptimizer",
+    "SimulatedAnnealing",
+    "CuckooSearch",
+    "BatAlgorithm",
+    "GlowwormOptimizer",
+    "sphere",
+    "rosenbrock",
+    "rastrigin",
+    "ackley",
+    "griewank",
+    "schwefel",
+    "BenchmarkResult",
+    "BacterialForagingOptimizer",
+    "DifferentialEvolution",
+    "convergence_rate",
+    "optimization_gap",
+    "success_rate",
+    "computational_efficiency",
+    "distribution_analysis",
+    "robustness_analysis",
+    "paired_significance_test",
+    "aggregate_runs",
+    "ProfilingResult",
+    "profile_callable",
+    "profile_optimization_run",
+    "benchmark_optimizer",
+    "benchmark_optimizers",
+    "benchmark_report",
+    "benchmark_visualization",
+    "compare_benchmark_results",
+    "check_bounds",
+    "check_objective_function",
+    "check_optimization_problem",
     # "AntColonyOptimizer", 
     # "ParticleSwarmOptimizer",
     # "ArtificialBeeColonyOptimizer",

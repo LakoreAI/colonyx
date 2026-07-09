@@ -8,7 +8,11 @@ use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use crate::algorithms::{AntColony, BeeColony, Optimizer, ParticleSwarm};
+use crate::algorithms::{
+    two_opt, AntColony, BacterialForagingOptimizer, BatAlgorithm, BeeColony, CuckooSearch,
+    DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer, Optimizer,
+    ParticleSwarm, SimulatedAnnealing,
+};
 use crate::core::{Bounds, ContinuousProblem, DiscreteProblem};
 
 /// Build `Bounds` from Python lower/upper lists, surfacing errors as `ValueError`.
@@ -45,6 +49,10 @@ pub struct PyAntColony {
     inner: AntColony,
     best_tour: Option<Vec<usize>>,
     best_length: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
 }
 
 #[pymethods]
@@ -57,6 +65,7 @@ impl PyAntColony {
         beta = 2.0,
         rho = 0.5,
         q = 1.0,
+        use_two_opt = true,
         random_state = None,
     ))]
     fn new(
@@ -66,14 +75,17 @@ impl PyAntColony {
         beta: f64,
         rho: f64,
         q: f64,
+        use_two_opt: bool,
         random_state: Option<u64>,
     ) -> Self {
-        let mut inner = AntColony::new(n_ants, n_iterations, alpha, beta, rho, q);
+        let mut inner = AntColony::new(n_ants, n_iterations, alpha, beta, rho, q, use_two_opt);
         inner.set_random_seed(random_state);
         Self {
             inner,
             best_tour: None,
             best_length: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
         }
     }
 
@@ -106,6 +118,12 @@ impl PyAntColony {
         if let Some(solution) = self.inner.predict() {
             self.best_tour = Some(solution.variables.iter().map(|&x| x as usize).collect());
             self.best_length = solution.fitness;
+            self.history_ = self.best_length.into_iter().collect();
+            self.population_ = self
+                .best_tour
+                .clone()
+                .map(|tour| vec![tour.into_iter().map(|city| city as f64).collect()])
+                .unwrap_or_default();
         }
 
         Ok(())
@@ -155,6 +173,10 @@ pub struct PyParticleSwarm {
     random_state: Option<u64>,
     best_position: Option<Vec<f64>>,
     best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
 }
 
 #[pymethods]
@@ -185,6 +207,8 @@ impl PyParticleSwarm {
             random_state,
             best_position: None,
             best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
         }
     }
 
@@ -222,6 +246,12 @@ impl PyParticleSwarm {
         if let Some(solution) = pso.predict() {
             self.best_position = Some(solution.variables);
             self.best_score = solution.fitness;
+            self.history_ = self.best_score.into_iter().collect();
+            self.population_ = self
+                .best_position
+                .clone()
+                .map(|position| vec![position])
+                .unwrap_or_default();
         }
 
         Ok(())
@@ -269,6 +299,10 @@ pub struct PyBeeColony {
     random_state: Option<u64>,
     best_position: Option<Vec<f64>>,
     best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
 }
 
 #[pymethods]
@@ -288,6 +322,8 @@ impl PyBeeColony {
             random_state,
             best_position: None,
             best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
         }
     }
 
@@ -318,6 +354,12 @@ impl PyBeeColony {
         if let Some(solution) = abc.predict() {
             self.best_position = Some(solution.variables);
             self.best_score = solution.fitness;
+            self.history_ = self.best_score.into_iter().collect();
+            self.population_ = self
+                .best_position
+                .clone()
+                .map(|position| vec![position])
+                .unwrap_or_default();
         }
 
         Ok(())
@@ -350,4 +392,897 @@ impl PyBeeColony {
             self.n_bees, self.n_iterations, self.limit,
         )
     }
+}
+
+/// Grey Wolf Optimizer for continuous minimization.
+#[pyclass(name = "GreyWolfOptimizer")]
+pub struct PyGreyWolfOptimizer {
+    n_wolves: usize,
+    n_iterations: usize,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyGreyWolfOptimizer {
+    #[new]
+    #[pyo3(signature = (n_wolves = 30, n_iterations = 100, random_state = None))]
+    fn new(n_wolves: usize, n_iterations: usize, random_state: Option<u64>) -> Self {
+        Self {
+            n_wolves,
+            n_iterations,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = GreyWolfOptimizer::new(self.n_wolves, self.n_iterations, bounds);
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_wolves".to_string(), self.n_wolves as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params
+    }
+}
+
+/// Firefly algorithm for continuous minimization.
+#[pyclass(name = "FireflyOptimizer")]
+pub struct PyFireflyOptimizer {
+    n_fireflies: usize,
+    n_iterations: usize,
+    beta0: f64,
+    gamma: f64,
+    alpha: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyFireflyOptimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_fireflies = 30,
+        n_iterations = 100,
+        beta0 = 1.0,
+        gamma = 1.0,
+        alpha = 0.2,
+        random_state = None,
+    ))]
+    fn new(
+        n_fireflies: usize,
+        n_iterations: usize,
+        beta0: f64,
+        gamma: f64,
+        alpha: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_fireflies,
+            n_iterations,
+            beta0,
+            gamma,
+            alpha,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = FireflyOptimizer::new(
+            self.n_fireflies,
+            self.n_iterations,
+            self.beta0,
+            self.gamma,
+            self.alpha,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_fireflies".to_string(), self.n_fireflies as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("beta0".to_string(), self.beta0);
+        params.insert("gamma".to_string(), self.gamma);
+        params.insert("alpha".to_string(), self.alpha);
+        params
+    }
+}
+
+/// Simulated annealing for continuous minimization.
+#[pyclass(name = "SimulatedAnnealing")]
+pub struct PySimulatedAnnealing {
+    initial_temperature: f64,
+    cooling_rate: f64,
+    step_scale: f64,
+    n_iterations: usize,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PySimulatedAnnealing {
+    #[new]
+    #[pyo3(signature = (
+        initial_temperature = 10.0,
+        cooling_rate = 0.95,
+        step_scale = 0.1,
+        n_iterations = 100,
+        random_state = None,
+    ))]
+    fn new(
+        initial_temperature: f64,
+        cooling_rate: f64,
+        step_scale: f64,
+        n_iterations: usize,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            initial_temperature,
+            cooling_rate,
+            step_scale,
+            n_iterations,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = SimulatedAnnealing::new(
+            self.initial_temperature,
+            self.cooling_rate,
+            self.step_scale,
+            self.n_iterations,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("initial_temperature".to_string(), self.initial_temperature);
+        params.insert("cooling_rate".to_string(), self.cooling_rate);
+        params.insert("step_scale".to_string(), self.step_scale);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params
+    }
+}
+
+/// Cuckoo search for continuous minimization.
+#[pyclass(name = "CuckooSearch")]
+pub struct PyCuckooSearch {
+    n_nests: usize,
+    n_iterations: usize,
+    pa: f64,
+    alpha: f64,
+    levy_scale: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyCuckooSearch {
+    #[new]
+    #[pyo3(signature = (
+        n_nests = 25,
+        n_iterations = 100,
+        pa = 0.25,
+        alpha = 0.01,
+        levy_scale = 1.0,
+        random_state = None,
+    ))]
+    fn new(
+        n_nests: usize,
+        n_iterations: usize,
+        pa: f64,
+        alpha: f64,
+        levy_scale: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_nests,
+            n_iterations,
+            pa,
+            alpha,
+            levy_scale,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = CuckooSearch::new(
+            self.n_nests,
+            self.n_iterations,
+            self.pa,
+            self.alpha,
+            self.levy_scale,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_nests".to_string(), self.n_nests as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("pa".to_string(), self.pa);
+        params.insert("alpha".to_string(), self.alpha);
+        params.insert("levy_scale".to_string(), self.levy_scale);
+        params
+    }
+}
+
+/// Bat algorithm for continuous minimization.
+#[pyclass(name = "BatAlgorithm")]
+pub struct PyBatAlgorithm {
+    n_bats: usize,
+    n_iterations: usize,
+    fmin: f64,
+    fmax: f64,
+    alpha: f64,
+    gamma: f64,
+    loudness: f64,
+    pulse_rate: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyBatAlgorithm {
+    #[new]
+    #[pyo3(signature = (
+        n_bats = 30,
+        n_iterations = 100,
+        fmin = 0.0,
+        fmax = 2.0,
+        alpha = 0.9,
+        gamma = 0.9,
+        loudness = 1.0,
+        pulse_rate = 0.5,
+        random_state = None,
+    ))]
+    fn new(
+        n_bats: usize,
+        n_iterations: usize,
+        fmin: f64,
+        fmax: f64,
+        alpha: f64,
+        gamma: f64,
+        loudness: f64,
+        pulse_rate: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_bats,
+            n_iterations,
+            fmin,
+            fmax,
+            alpha,
+            gamma,
+            loudness,
+            pulse_rate,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = BatAlgorithm::new(
+            self.n_bats,
+            self.n_iterations,
+            self.fmin,
+            self.fmax,
+            self.alpha,
+            self.gamma,
+            self.loudness,
+            self.pulse_rate,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_bats".to_string(), self.n_bats as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("fmin".to_string(), self.fmin);
+        params.insert("fmax".to_string(), self.fmax);
+        params.insert("alpha".to_string(), self.alpha);
+        params.insert("gamma".to_string(), self.gamma);
+        params.insert("loudness".to_string(), self.loudness);
+        params.insert("pulse_rate".to_string(), self.pulse_rate);
+        params
+    }
+}
+
+/// Glowworm swarm optimizer for continuous minimization.
+#[pyclass(name = "GlowwormOptimizer")]
+pub struct PyGlowwormOptimizer {
+    n_worms: usize,
+    n_iterations: usize,
+    luciferin_decay: f64,
+    luciferin_enhancement: f64,
+    step_size: f64,
+    neighborhood_radius: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyGlowwormOptimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_worms = 30,
+        n_iterations = 100,
+        luciferin_decay = 0.4,
+        luciferin_enhancement = 0.6,
+        step_size = 0.1,
+        neighborhood_radius = 1.0,
+        random_state = None,
+    ))]
+    fn new(
+        n_worms: usize,
+        n_iterations: usize,
+        luciferin_decay: f64,
+        luciferin_enhancement: f64,
+        step_size: f64,
+        neighborhood_radius: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_worms,
+            n_iterations,
+            luciferin_decay,
+            luciferin_enhancement,
+            step_size,
+            neighborhood_radius,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = GlowwormOptimizer::new(
+            self.n_worms,
+            self.n_iterations,
+            self.luciferin_decay,
+            self.luciferin_enhancement,
+            self.step_size,
+            self.neighborhood_radius,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_worms".to_string(), self.n_worms as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("luciferin_decay".to_string(), self.luciferin_decay);
+        params.insert(
+            "luciferin_enhancement".to_string(),
+            self.luciferin_enhancement,
+        );
+        params.insert("step_size".to_string(), self.step_size);
+        params.insert("neighborhood_radius".to_string(), self.neighborhood_radius);
+        params
+    }
+}
+
+/// Bacterial foraging optimizer for continuous minimization.
+#[pyclass(name = "BacterialForagingOptimizer")]
+pub struct PyBacterialForagingOptimizer {
+    n_bacteria: usize,
+    n_iterations: usize,
+    n_chemotactic_steps: usize,
+    n_reproduction_steps: usize,
+    elimination_probability: f64,
+    step_scale: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyBacterialForagingOptimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_bacteria = 30,
+        n_iterations = 100,
+        n_chemotactic_steps = 10,
+        n_reproduction_steps = 4,
+        elimination_probability = 0.25,
+        step_scale = 0.1,
+        random_state = None,
+    ))]
+    fn new(
+        n_bacteria: usize,
+        n_iterations: usize,
+        n_chemotactic_steps: usize,
+        n_reproduction_steps: usize,
+        elimination_probability: f64,
+        step_scale: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_bacteria,
+            n_iterations,
+            n_chemotactic_steps,
+            n_reproduction_steps,
+            elimination_probability,
+            step_scale,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = BacterialForagingOptimizer::new(
+            self.n_bacteria,
+            self.n_iterations,
+            self.n_chemotactic_steps,
+            self.n_reproduction_steps,
+            self.elimination_probability,
+            self.step_scale,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_bacteria".to_string(), self.n_bacteria as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert(
+            "n_chemotactic_steps".to_string(),
+            self.n_chemotactic_steps as f64,
+        );
+        params.insert(
+            "n_reproduction_steps".to_string(),
+            self.n_reproduction_steps as f64,
+        );
+        params.insert(
+            "elimination_probability".to_string(),
+            self.elimination_probability,
+        );
+        params.insert("step_scale".to_string(), self.step_scale);
+        params
+    }
+}
+
+/// Differential evolution for continuous minimization.
+#[pyclass(name = "DifferentialEvolution")]
+pub struct PyDifferentialEvolution {
+    n_individuals: usize,
+    n_iterations: usize,
+    f: f64,
+    cr: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyDifferentialEvolution {
+    #[new]
+    #[pyo3(signature = (
+        n_individuals = 40,
+        n_iterations = 100,
+        f = 0.8,
+        cr = 0.9,
+        random_state = None,
+    ))]
+    fn new(
+        n_individuals: usize,
+        n_iterations: usize,
+        f: f64,
+        cr: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_individuals,
+            n_iterations,
+            f,
+            cr,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer = DifferentialEvolution::new(
+            self.n_individuals,
+            self.n_iterations,
+            self.f,
+            self.cr,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_individuals".to_string(), self.n_individuals as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("f".to_string(), self.f);
+        params.insert("cr".to_string(), self.cr);
+        params
+    }
+}
+
+#[pyfunction]
+pub fn two_opt_py(tour: Vec<usize>, distance_matrix: Vec<Vec<f64>>) -> PyResult<(Vec<usize>, f64)> {
+    two_opt(&tour, &distance_matrix).map_err(PyValueError::new_err)
 }

@@ -1,16 +1,16 @@
 /// Base trait for all optimization algorithms
 pub trait Optimizer {
     type Solution;
-    
+
     /// Fit the optimizer to the problem
     fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError>;
-    
+
     /// Get the best solution found
     fn predict(&self) -> Option<Self::Solution>;
-    
+
     /// Get the best score/fitness
     fn score(&self) -> Option<f64>;
-    
+
     /// Get algorithm-specific parameters
     fn get_params(&self) -> std::collections::HashMap<String, f64>;
 }
@@ -36,4 +36,4 @@ impl std::fmt::Display for OptimizationError {
     }
 }
 
-impl std::error::Error for OptimizationError {} 
+impl std::error::Error for OptimizationError {}
