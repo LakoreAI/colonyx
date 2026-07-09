@@ -10,6 +10,9 @@ __version__ = "0.1.0"
 __author__ = "Minh, Le Duc"
 __email__ = "minh.leduc.0210@gmail.com"
 
+# Import the compiled Rust core (built by maturin as colonyx._colonyx)
+from . import _colonyx
+
 # Import the main interface
 from .auto import AutoColony
 

@@ -3,17 +3,15 @@ use pyo3::prelude::*;
 // Core modules
 pub mod core;
 pub mod algorithms;
-pub mod utils;
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
+// Python bindings
+mod bindings;
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn colonyx(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+fn _colonyx(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<bindings::PyAntColony>()?;
+    m.add_class::<bindings::PyParticleSwarm>()?;
+    m.add_class::<bindings::PyBeeColony>()?;
     Ok(())
 }
