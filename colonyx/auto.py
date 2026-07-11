@@ -69,7 +69,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
         ``n_individuals``, ``f``, ``cr`` for DE.
     """
 
-    _valid_modes = ("auto", "aco", "pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "bfo", "de")
+    _valid_modes = ("auto", "aco", "pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "bfo", "de", "cmaes")
 
     def __init__(
         self,
@@ -119,6 +119,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
         n_individuals: int = 40,
         f: float = 0.8,
         cr: float = 0.9,
+        cmaes_sigma: float = 0.5,
     ):
         self.mode = mode
         self.n_iterations = n_iterations
@@ -166,6 +167,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
         self.n_individuals = n_individuals
         self.f = f
         self.cr = cr
+        self.cmaes_sigma = cmaes_sigma
 
     def _more_tags(self) -> Dict[str, Any]:
         return {
@@ -342,6 +344,12 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "f": "f",
                 "cr": "cr",
             },
+            "cmaes": {
+                "n_iterations": "n_iterations",
+                "random_state": "random_state",
+                "n_individuals": "n_individuals",
+                "cmaes_sigma": "cmaes_sigma",
+            },
         }
         return mappings.get(mode, {})
 
@@ -458,6 +466,15 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "cr": 0.9,
             }
 
+        if mode == "cmaes":
+            size = dimension if dimension is not None else 10
+            return {
+                "mode": "cmaes",
+                "n_iterations": max(self.n_iterations, 80),
+                "n_individuals": min(max(10, size * 4), 60),
+                "cmaes_sigma": 0.5,
+            }
+
         return {
             "mode": "pso",
             "n_iterations": max(self.n_iterations, 50),
@@ -482,6 +499,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
             "gso": "GSO params: n_worms, luciferin_decay, luciferin_enhancement, gso_step_size",
             "bfo": "BFO params: n_bacteria, n_chemotactic_steps, n_reproduction_steps, elimination_probability",
             "de": "DE params: n_individuals, f, cr",
+            "cmaes": "CMA-ES params: n_individuals, cmaes_sigma",
             "auto": "Auto mode selects a backend from the input shape and bounds",
         }
         return help_map.get(mode, "Unknown mode")
@@ -589,6 +607,13 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "n_individuals": self.n_individuals,
                 "f": self.f,
                 "cr": self.cr,
+            }
+
+        if algorithm_mode == "cmaes":
+            return {
+                **base_params,
+                "n_individuals": self.n_individuals,
+                "cmaes_sigma": self.cmaes_sigma,
             }
 
         return base_params
@@ -750,6 +775,17 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 random_state=params["random_state"],
             )
 
+        if algorithm_mode == "cmaes":
+            from ._colonyx import CmaEsOptimizer
+
+            params = self.resolve_parameter_conflicts("cmaes")
+            return CmaEsOptimizer(
+                n_individuals=int(params["n_individuals"]),
+                n_iterations=int(params["n_iterations"]),
+                sigma=float(params["cmaes_sigma"]),
+                random_state=params["random_state"],
+            )
+
         raise ValueError(f"Unknown algorithm mode: {algorithm_mode}")
 
     def _as_distance_matrix(self, X):
@@ -836,7 +872,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
             self._algorithm_mode = "aco"
             self._algorithm.fit(distance_matrix)
 
-        elif algorithm_mode in ("pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "bfo", "de"):
+        elif algorithm_mode in ("pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "bfo", "de", "cmaes"):
             if callable(X):
                 check_objective_function(X, probe_point=[0.0])
                 if bounds is None:

@@ -102,28 +102,59 @@ def benchmark_optimizer(
     optimizer_factory: Callable[[], object],
     *fit_args,
     repeats: int = 3,
+    callback: Callable[[str, int, BenchmarkResult | None], None] | None = None,
+    early_stopping_rounds: int | None = None,
     **fit_kwargs,
 ) -> BenchmarkResult:
     """Run one optimizer repeatedly and aggregate the results."""
     if repeats < 1:
         raise ValueError("repeats must be at least 1")
+    if early_stopping_rounds is not None and early_stopping_rounds < 1:
+        raise ValueError("early_stopping_rounds must be at least 1")
 
     scores: list[float] = []
     elapsed_seconds: list[float] = []
     peak_memory_kib: list[float] = []
+    best_score = float("inf")
+    stagnant_runs = 0
 
-    for _ in range(repeats):
+    for run_index in range(repeats):
         optimizer = optimizer_factory()
         profile = profile_optimization_run(optimizer, *fit_args, **fit_kwargs)
         scores.append(float(profile.best_score))
         elapsed_seconds.append(float(profile.elapsed_seconds))
         peak_memory_kib.append(float(profile.peak_memory_kib))
+        current_result = BenchmarkResult(
+            name=name,
+            scores=tuple(scores),
+            elapsed_seconds=tuple(elapsed_seconds),
+            peak_memory_kib=tuple(peak_memory_kib),
+            best_score=float(np.min(np.asarray(scores, dtype=float))),
+            mean_score=float(np.mean(np.asarray(scores, dtype=float))),
+            std_score=float(np.std(np.asarray(scores, dtype=float))),
+            mean_elapsed_seconds=float(np.mean(np.asarray(elapsed_seconds, dtype=float))),
+            mean_peak_memory_kib=float(np.mean(np.asarray(peak_memory_kib, dtype=float))),
+            convergence_rate=convergence_rate(scores),
+            efficiency=computational_efficiency(scores, elapsed_seconds=float(np.sum(np.asarray(elapsed_seconds, dtype=float)))),
+        )
+
+        if callback is not None:
+            callback(name, run_index, current_result)
+
+        if current_result.best_score + 1e-12 < best_score:
+            best_score = current_result.best_score
+            stagnant_runs = 0
+        else:
+            stagnant_runs += 1
+
+        if early_stopping_rounds is not None and stagnant_runs >= early_stopping_rounds:
+            break
 
     score_array = np.asarray(scores, dtype=float)
     elapsed_array = np.asarray(elapsed_seconds, dtype=float)
     peak_array = np.asarray(peak_memory_kib, dtype=float)
 
-    return BenchmarkResult(
+    result = BenchmarkResult(
         name=name,
         scores=tuple(scores),
         elapsed_seconds=tuple(elapsed_seconds),
@@ -136,17 +167,28 @@ def benchmark_optimizer(
         convergence_rate=convergence_rate(scores),
         efficiency=computational_efficiency(scores, elapsed_seconds=float(np.sum(elapsed_array))),
     )
+    return result
 
 
 def benchmark_optimizers(
     optimizer_factories: Mapping[str, Callable[[], object]],
     *fit_args,
     repeats: int = 3,
+    callback: Callable[[str, int, BenchmarkResult | None], None] | None = None,
+    early_stopping_rounds: int | None = None,
     **fit_kwargs,
 ) -> dict[str, BenchmarkResult]:
     """Benchmark several optimizers and return per-optimizer summaries."""
     return {
-        name: benchmark_optimizer(name, factory, *fit_args, repeats=repeats, **fit_kwargs)
+        name: benchmark_optimizer(
+            name,
+            factory,
+            *fit_args,
+            repeats=repeats,
+            callback=callback,
+            early_stopping_rounds=early_stopping_rounds,
+            **fit_kwargs,
+        )
         for name, factory in optimizer_factories.items()
     }
 

@@ -1,8 +1,10 @@
 # colonyx
 
-**colonyx** is a Python library for solving optimization problems using swarm intelligence algorithms like Ant Colony Optimization (ACO), Particle Swarm Optimization (PSO), and Artificial Bee Colony (ABC).
+**colonyx** is a Python library for solving optimization problems using swarm intelligence algorithms like Ant Colony Optimization (ACO), Particle Swarm Optimization (PSO), Artificial Bee Colony (ABC), Grey Wolf Optimization (GWO), Firefly (FA), Simulated Annealing (SA), Cuckoo Search (CS), Bat Algorithm (BA), Glowworm Swarm Optimization (GSO), Bacterial Foraging (BFO), and Differential Evolution (DE).
 
 While the interface is Pythonic and easy to use, the core is written in Rust to deliver better performance for larger or more complex problems.
+
+Documentation: see `docs/index.md` for the library guide and API overview.
 
 > This is an early version — contributions, suggestions, and feedback are all welcome.
 
@@ -11,6 +13,10 @@ While the interface is Pythonic and easy to use, the core is written in Rust to 
 - Ant Colony Optimization (ACO) — for discrete problems like TSP
 - Particle Swarm Optimization (PSO) — for continuous function optimization
 - Artificial Bee Colony (ABC) — inspired by bee foraging behavior
+- Grey Wolf Optimization (GWO), Firefly (FA), Simulated Annealing (SA)
+- Cuckoo Search (CS), Bat Algorithm (BA), Glowworm Swarm Optimization (GSO)
+- Bacterial Foraging (BFO), Differential Evolution (DE)
+- CMA-ES for covariance-adaptive continuous search
 - Simple, clean Python API
 - Fast backend powered by Rust
 
@@ -22,7 +28,7 @@ pip install colonyx
 
 ```
 
-*(Coming soon to PyPI — for now, install from source)*
+*(Install from source while release automation is being prepared.)*
 
 ## Example
 
@@ -72,6 +78,15 @@ opt.score()    # tour length (lower is better)
 
 Use `mode="auto"` to let colonyx pick ACO for a square matrix or PSO for an
 objective function automatically.
+
+## Documentation
+
+- Library guide: `docs/index.md`
+- AutoColony API: `docs/autocolony-api.md`
+- CLI: `docs/cli.md`
+- Getting started: `docs/getting-started.md`
+- Algorithm overview: `docs/algorithms.md`
+- Release and packaging notes: `docs/release.md`
 
 ## License
 

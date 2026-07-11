@@ -6,7 +6,12 @@ like Ant Colony Optimization (ACO), Particle Swarm Optimization (PSO), and
 Artificial Bee Colony (ABC) with a scikit-learn compatible interface.
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("colonyx")
+except PackageNotFoundError:  # pragma: no cover - local source checkout
+    __version__ = "0.1.0"
 __author__ = "Minh, Le Duc"
 __email__ = "minh.leduc.0210@gmail.com"
 
@@ -17,6 +22,7 @@ from ._colonyx import (
     BatAlgorithm,
     BeeColony,
     CuckooSearch,
+    CmaEsOptimizer,
     DifferentialEvolution,
     FireflyOptimizer,
     GlowwormOptimizer,
@@ -83,6 +89,7 @@ __all__ = [
     "FireflyOptimizer",
     "SimulatedAnnealing",
     "CuckooSearch",
+    "CmaEsOptimizer",
     "BatAlgorithm",
     "GlowwormOptimizer",
     "sphere",

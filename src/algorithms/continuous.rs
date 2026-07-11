@@ -1349,3 +1349,149 @@ impl Optimizer for DifferentialEvolution {
         params
     }
 }
+
+pub struct CmaEsOptimizer {
+    pub n_individuals: usize,
+    pub n_iterations: usize,
+    pub sigma: f64,
+    pub bounds: Bounds,
+    pub random_seed: Option<u64>,
+    pub best_solution: Option<Solution>,
+    pub history: Vec<f64>,
+    pub population: Vec<Vec<f64>>,
+}
+
+impl CmaEsOptimizer {
+    pub fn new(n_individuals: usize, n_iterations: usize, sigma: f64, bounds: Bounds) -> Self {
+        Self {
+            n_individuals,
+            n_iterations,
+            sigma,
+            bounds,
+            random_seed: None,
+            best_solution: None,
+            history: Vec::new(),
+            population: Vec::new(),
+        }
+    }
+
+    pub fn set_random_seed(&mut self, seed: Option<u64>) {
+        self.random_seed = seed;
+    }
+}
+
+impl Optimizer for CmaEsOptimizer {
+    type Solution = Solution;
+
+    fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError> {
+        let dimension = self.bounds.lower.len();
+        if dimension == 0 {
+            return Err(OptimizationError::InvalidInput(
+                "Problem must have at least one dimension".to_string(),
+            ));
+        }
+        if problem.dimensions() != dimension {
+            return Err(OptimizationError::DimensionMismatch(format!(
+                "Problem has {} dimensions but bounds have {}",
+                problem.dimensions(),
+                dimension
+            )));
+        }
+        if self.n_individuals < 4 {
+            return Err(OptimizationError::InvalidInput(
+                "n_individuals must be at least 4 for CMA-ES".to_string(),
+            ));
+        }
+
+        let mut rng = match self.random_seed {
+            Some(seed) => StdRng::seed_from_u64(seed),
+            None => StdRng::from_entropy(),
+        };
+        let ranges = self.bounds.ranges();
+        let mut mean: Vec<f64> = self.bounds.midpoint();
+        let mut covariance: Vec<f64> = vec![1.0_f64; dimension];
+        let mu = (self.n_individuals / 2).max(1);
+        let raw_weights: Vec<f64> = (0..mu)
+            .map(|index| ((mu as f64 + 0.5).ln() - ((index + 1) as f64).ln()).max(0.0))
+            .collect();
+        let weight_sum: f64 = raw_weights.iter().sum::<f64>().max(1e-12);
+        let weights: Vec<f64> = raw_weights.iter().map(|weight| weight / weight_sum).collect();
+
+        let mut best_position = mean.clone();
+        let mut best_score = problem.evaluate(&best_position);
+
+        for _ in 0..self.n_iterations {
+            let mut population = Vec::with_capacity(self.n_individuals);
+            let mut scores = Vec::with_capacity(self.n_individuals);
+
+            for _ in 0..self.n_individuals {
+                let mut candidate = vec![0.0; dimension];
+                for dimension_index in 0..dimension {
+                    let deviation =
+                        self.sigma * covariance[dimension_index].sqrt() * standard_normal(&mut rng);
+                    candidate[dimension_index] = clamp_value(
+                        mean[dimension_index] + deviation,
+                        self.bounds.lower[dimension_index],
+                        self.bounds.upper[dimension_index],
+                    );
+                }
+                let score = problem.evaluate(&candidate);
+                if score < best_score {
+                    best_score = score;
+                    best_position = candidate.clone();
+                }
+                population.push(candidate);
+                scores.push(score);
+            }
+
+            let mut ranking: Vec<usize> = (0..self.n_individuals).collect();
+            ranking.sort_by(|left, right| scores[*left].partial_cmp(&scores[*right]).unwrap());
+
+            let mut new_mean = vec![0.0; dimension];
+            for (rank, &index) in ranking.iter().take(mu).enumerate() {
+                for dimension_index in 0..dimension {
+                    new_mean[dimension_index] += weights[rank] * population[index][dimension_index];
+                }
+            }
+
+            let mut new_covariance = vec![0.0; dimension];
+            for (rank, &index) in ranking.iter().take(mu).enumerate() {
+                for dimension_index in 0..dimension {
+                    let delta = population[index][dimension_index] - new_mean[dimension_index];
+                    new_covariance[dimension_index] += weights[rank] * delta * delta;
+                }
+            }
+
+            for dimension_index in 0..dimension {
+                let normalized =
+                    new_covariance[dimension_index] / (ranges[dimension_index].powi(2) + 1e-12_f64);
+                covariance[dimension_index] =
+                    0.8 * covariance[dimension_index] + 0.2 * normalized.max(1e-12_f64);
+            }
+
+            mean = new_mean;
+            self.sigma = (self.sigma * 0.99).max(1e-6);
+            self.population = population;
+            self.history.push(best_score);
+        }
+
+        self.best_solution = Some(Solution::with_fitness(best_position, best_score));
+        Ok(())
+    }
+
+    fn predict(&self) -> Option<Self::Solution> {
+        self.best_solution.clone()
+    }
+
+    fn score(&self) -> Option<f64> {
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_individuals".to_string(), self.n_individuals as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("sigma".to_string(), self.sigma);
+        params
+    }
+}

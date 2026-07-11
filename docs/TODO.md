@@ -1,36 +1,36 @@
 # **colonyx — Comprehensive TODO List for Scikit-Learn Compatible Swarm Intelligence Library**
 
-> **Note**: This library uses a unified interface called `AutoColony` (similar to HuggingFace's `AutoModel`) as the main entry point, with individual algorithms (ACO, PSO, ABC, GWO, FA, SA, CS, BA, GSO, DE) selected via the `mode` parameter.
+> **Note**: This library uses a unified interface called `AutoColony` (similar to HuggingFace's `AutoModel`) as the main entry point, with individual algorithms (ACO, PSO, ABC, GWO, FA, SA, CS, BA, GSO, DE, CMA-ES) selected via the `mode` parameter.
 
 ## **Architecture Overview**
 - **Main Interface**: `AutoColony` class with `mode` parameter for algorithm selection
-- **Algorithm Modes**: 'aco', 'pso', 'abc', 'gwo', 'fa', 'sa', 'cs', 'ba', 'gso', 'de', 'auto' (auto-selects based on problem type)
+- **Algorithm Modes**: 'aco', 'pso', 'abc', 'gwo', 'fa', 'sa', 'cs', 'ba', 'gso', 'de', 'cmaes', 'auto' (auto-selects based on problem type)
 - **Scikit-Learn Compatible**: Follows sklearn's `BaseEstimator` interface
 - **HuggingFace-style**: Single class with mode switching like `AutoModel`
 
 ## **Phase 0: Foundation & Architecture (Sprint 0)**
 
 ### **0.1 Core Infrastructure Setup**
-- [ ] **Rust Core Library Structure**
-  - [ ] Create `src/algorithms/` module structure
-  - [ ] Implement base `SwarmOptimizer` trait with required methods (Rust core)
+- [x] **Rust Core Library Structure**
+  - [x] Create `src/algorithms/` module structure
+  - [x] Implement base `SwarmOptimizer` trait with required methods (Rust core)
   - [ ] Add `src/problems/` for problem definitions (TSP, continuous functions)
   - [ ] Create `src/utils/` for common utilities (random, math functions)
   - [ ] Add comprehensive error handling with custom error types
   - [ ] Implement logging infrastructure using `log` crate
   - [ ] Add benchmarking utilities using `criterion` crate
 
-- [ ] **Python Package Structure (scikit-learn compatible)**
-  - [ ] Create `python/colonyx/` directory structure
-  - [ ] Implement `AutoColony` class as main interface (HuggingFace-style)
+- [x] **Python Package Structure (scikit-learn compatible)**
+  - [x] Create `python/colonyx/` directory structure
+  - [x] Implement `AutoColony` class as main interface (HuggingFace-style)
   - [ ] Implement `BaseOptimizer` class following scikit-learn's `BaseEstimator`
-  - [ ] Add `__init__.py` files with proper module exports
+  - [x] Add `__init__.py` files with proper module exports
   - [ ] Create `python/colonyx/base.py` for base classes
   - [ ] Create `python/colonyx/algorithms/` for internal algorithm implementations
   - [ ] Create `python/colonyx/utils/` for validation and utilities
   - [ ] Add `python/colonyx/metrics/` for scoring functions
   - [ ] Create `python/colonyx/datasets/` for benchmark problems
-  - [ ] Add `python/colonyx/auto.py` for auto-selection logic
+  - [x] Add `python/colonyx/auto.py` for auto-selection logic
 
 ### **0.2 Development Environment & Tools**
 - [ ] **Testing Infrastructure**

@@ -9,9 +9,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use crate::algorithms::{
-    two_opt, AntColony, BacterialForagingOptimizer, BatAlgorithm, BeeColony, CuckooSearch,
-    DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer, Optimizer,
-    ParticleSwarm, SimulatedAnnealing,
+    two_opt, AntColony, BacterialForagingOptimizer, BatAlgorithm, BeeColony, CmaEsOptimizer,
+    CuckooSearch, DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer,
+    Optimizer, ParticleSwarm, SimulatedAnnealing,
 };
 use crate::core::{Bounds, ContinuousProblem, DiscreteProblem};
 
@@ -1282,7 +1282,102 @@ impl PyDifferentialEvolution {
     }
 }
 
-#[pyfunction]
+/// CMA-ES-style optimizer for continuous minimization.
+#[pyclass(name = "CmaEsOptimizer")]
+pub struct PyCmaEsOptimizer {
+    n_individuals: usize,
+    n_iterations: usize,
+    sigma: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyCmaEsOptimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_individuals = 20,
+        n_iterations = 100,
+        sigma = 0.5,
+        random_state = None,
+    ))]
+    fn new(
+        n_individuals: usize,
+        n_iterations: usize,
+        sigma: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_individuals,
+            n_iterations,
+            sigma,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &bounds.midpoint())?;
+        let problem = ContinuousProblem {
+            name: "objective".to_string(),
+            dimensions,
+            objective_function,
+        };
+
+        let mut optimizer =
+            CmaEsOptimizer::new(self.n_individuals, self.n_iterations, self.sigma, bounds);
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_individuals".to_string(), self.n_individuals as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("sigma".to_string(), self.sigma);
+        params
+    }
+}
+
+#[pyfunction(name = "two_opt")]
 pub fn two_opt_py(tour: Vec<usize>, distance_matrix: Vec<Vec<f64>>) -> PyResult<(Vec<usize>, f64)> {
     two_opt(&tour, &distance_matrix).map_err(PyValueError::new_err)
 }

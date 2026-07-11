@@ -9,7 +9,8 @@ pub use abc::BeeColony;
 pub use aco::AntColony;
 pub use base::{OptimizationError, Optimizer};
 pub use continuous::{
-    two_opt, BacterialForagingOptimizer, BatAlgorithm, CuckooSearch, DifferentialEvolution,
-    FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer, SimulatedAnnealing,
+    two_opt, BacterialForagingOptimizer, BatAlgorithm, CmaEsOptimizer, CuckooSearch,
+    DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer,
+    SimulatedAnnealing,
 };
 pub use pso::ParticleSwarm;

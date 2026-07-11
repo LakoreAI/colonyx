@@ -1,0 +1,30 @@
+site_name: colonyx
+site_description: Rust-backed swarm intelligence optimization for Python
+site_url: https://minhld.github.io/colonyx/
+repo_url: https://github.com/minhld/colonyx
+repo_name: minhld/colonyx
+edit_uri: edit/main/docs/
+nav:
+  - Home: index.md
+  - AutoColony API: autocolony-api.md
+  - Getting Started: getting-started.md
+  - Examples: examples.md
+  - CLI: cli.md
+  - Algorithms:
+      - Overview: algorithms.md
+      - ACO: algorithms/aco.md
+      - PSO: algorithms/pso.md
+      - ABC: algorithms/abc.md
+      - GWO: algorithms/gwo.md
+      - FA: algorithms/fa.md
+      - SA: algorithms/sa.md
+      - CS: algorithms/cs.md
+      - BA: algorithms/ba.md
+      - GSO: algorithms/gso.md
+      - BFO: algorithms/bfo.md
+      - DE: algorithms/de.md
+      - CMA-ES: algorithms/cmaes.md
+  - API: api.md
+  - Release: release.md
+theme:
+  name: readthedocs

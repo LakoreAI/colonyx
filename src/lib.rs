@@ -23,5 +23,6 @@ fn _colonyx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<bindings::PyGlowwormOptimizer>()?;
     m.add_class::<bindings::PyBacterialForagingOptimizer>()?;
     m.add_class::<bindings::PyDifferentialEvolution>()?;
+    m.add_class::<bindings::PyCmaEsOptimizer>()?;
     Ok(())
 }

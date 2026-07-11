@@ -25,12 +25,28 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      - name: Rust unit tests
-        run: cargo test --verbose
-      - name: Build extension and run Python tests
+      - name: Rust checks
         run: |
-          uv sync --group dev
-          uv run pytest -v
+          cargo check --verbose
+          cargo build --release
+      - name: Install Python deps
+        run: uv sync --group dev
+      - name: Import smoke test
+        run: uv run python -c "import colonyx; print(colonyx.__version__)"
+      - name: Run Python tests
+        run: uv run pytest -v
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install docs tooling
+        run: python -m pip install --upgrade pip mkdocs
+      - name: Build docs
+        run: mkdocs build --strict
 
   linux:
     runs-on: ${{ matrix.platform.runner }}
