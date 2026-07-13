@@ -11,12 +11,13 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("colonyx")
 except PackageNotFoundError:  # pragma: no cover - local source checkout
-    __version__ = "0.1.0"
+    __version__ = "0.1.1"
 __author__ = "Minh, Le Duc"
 __email__ = "minh.leduc.0210@gmail.com"
 
 # Import the compiled Rust core (built by maturin as colonyx._colonyx)
 from . import _colonyx
+from .base import BaseOptimizer, BaseProblem, ContinuousProblem, DiscreteProblem, OptimizerMixin
 from ._colonyx import (
     BacterialForagingOptimizer,
     BatAlgorithm,
@@ -27,7 +28,11 @@ from ._colonyx import (
     FireflyOptimizer,
     GlowwormOptimizer,
     GreyWolfOptimizer,
+    BinaryParticleSwarm,
+    MopsoOptimizer,
+    Nsga2Optimizer,
     ParticleSwarm,
+    PermutationGeneticOptimizer,
     SimulatedAnnealing,
     AntColony,
     two_opt,
@@ -35,7 +40,6 @@ from ._colonyx import (
 
 # Import the main interface
 from .auto import AutoColony
-from .base import OptimizerMixin
 from .benchmarks import (
     BenchmarkProblem,
     ackley,
@@ -46,6 +50,7 @@ from .benchmarks import (
     schwefel,
     sphere,
 )
+from .datasets import list_benchmark_problems, load_benchmark_problem
 from .metrics import (
     BenchmarkResult,
     aggregate_runs,
@@ -78,9 +83,15 @@ from .utils import check_bounds, check_objective_function, check_optimization_pr
 
 __all__ = [
     "AutoColony",
+    "BaseOptimizer",
+    "BaseProblem",
+    "ContinuousProblem",
+    "DiscreteProblem",
     "OptimizerMixin",
     "BenchmarkProblem",
     "benchmark_suite",
+    "list_benchmark_problems",
+    "load_benchmark_problem",
     "two_opt",
     "AntColony",
     "ParticleSwarm",
@@ -90,6 +101,10 @@ __all__ = [
     "SimulatedAnnealing",
     "CuckooSearch",
     "CmaEsOptimizer",
+    "BinaryParticleSwarm",
+    "PermutationGeneticOptimizer",
+    "Nsga2Optimizer",
+    "MopsoOptimizer",
     "BatAlgorithm",
     "GlowwormOptimizer",
     "sphere",

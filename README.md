@@ -17,6 +17,8 @@ Documentation: see `docs/index.md` for the library guide and API overview.
 - Cuckoo Search (CS), Bat Algorithm (BA), Glowworm Swarm Optimization (GSO)
 - Bacterial Foraging (BFO), Differential Evolution (DE)
 - CMA-ES for covariance-adaptive continuous search
+- Binary PSO, permutation GA, NSGA-II, and MOPSO for advanced search
+- ACO variants including ACS, elitist, and MMAS behavior
 - Simple, clean Python API
 - Fast backend powered by Rust
 
@@ -78,6 +80,40 @@ opt.score()    # tour length (lower is better)
 
 Use `mode="auto"` to let colonyx pick ACO for a square matrix or PSO for an
 objective function automatically.
+
+For advanced optimizers, see `docs/algorithms/advanced.md`.
+
+## Rust usage
+
+The optimization core is implemented in Rust. If you are working on the Rust
+side of the codebase, you can use the core types and optimizers directly:
+
+```rust
+use colonyx::algorithms::base::Optimizer;
+use colonyx::algorithms::pso::ParticleSwarm;
+use colonyx::core::{Bounds, ContinuousProblem};
+
+fn main() {
+    let bounds = Bounds::uniform(3, -5.0, 5.0).unwrap();
+    let mut optimizer = ParticleSwarm::new(30, 100, 0.7, 1.5, 1.5, bounds);
+    optimizer.set_random_seed(Some(42));
+
+    let problem = ContinuousProblem {
+        name: "sphere".to_string(),
+        dimensions: 3,
+        objective_function: Box::new(|x: &[f64]| x.iter().map(|xi| xi * xi).sum()),
+    };
+
+    optimizer.fit(&problem).unwrap();
+
+    let best = optimizer.predict().unwrap();
+    println!("best position: {:?}", best.variables);
+    println!("best score: {:?}", optimizer.score().unwrap());
+}
+```
+
+For discrete problems, use `AntColony` with `DiscreteProblem` and a distance
+matrix.
 
 ## Documentation
 

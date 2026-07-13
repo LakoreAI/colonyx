@@ -12,6 +12,7 @@ It exposes a unified `AutoColony` interface for:
 - Rust contains the search algorithms and core problem types.
 - Python provides the public interface, validation, and sklearn compatibility.
 - The compiled extension is exposed as `colonyx._colonyx`.
+- Rust users can also depend on the crate directly; see `docs/rust.md`.
 
 ## Quick example
 
@@ -33,6 +34,7 @@ print(optimizer.score())
 - See `docs/autocolony-api.md` for the main sklearn-style interface.
 - See `docs/cli.md` for the command-line interface.
 - Use `mode="auto"` to let the library choose a backend.
+- See `docs/rust.md` for Rust crate usage.
 - See `docs/algorithms.md` for algorithm-level notes.
 - See `docs/release.md` for local build and publish steps.
 
@@ -48,6 +50,9 @@ print(optimizer.score())
 - `PSO` for general-purpose continuous optimization
 - `ABC` for population-based search with food sources
 - `GWO`, `FA`, `SA`, `CS`, `BA`, `GSO`, `BFO`, `DE`, and `CMA-ES` for alternative heuristics
+- `BinaryParticleSwarm`, `PermutationGeneticOptimizer`, `Nsga2Optimizer`, and
+  `MopsoOptimizer` for advanced discrete and multi-objective search
+- `AntColony` variants `basic`, `acs`, `elitist`, and `mmas`
 
 ### Interface
 

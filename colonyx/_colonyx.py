@@ -29,9 +29,10 @@ def _candidate_paths() -> list[Path]:
                     continue
                 candidates.append(path)
 
-    for path in project_root.glob(f"target/**/lib_colonyx*"):
-        if path.suffix in {".dylib", ".so"}:
-            candidates.append(path)
+    for pattern in ("libcolonyx*", "lib_colonyx*"):
+        for path in project_root.glob(f"target/**/{pattern}"):
+            if path.suffix in {".dylib", ".so"}:
+                candidates.append(path)
 
     return sorted({path.resolve() for path in candidates})
 

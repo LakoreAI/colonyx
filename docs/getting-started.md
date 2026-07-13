@@ -16,6 +16,18 @@ import colonyx
 from colonyx import AutoColony
 ```
 
+## Rust development
+
+If you want to work on the Rust core directly, build the crate with `cargo`
+or `maturin` and import the shared modules from `colonyx::core` and
+`colonyx::algorithms`.
+
+```bash
+cargo build
+```
+
+See `docs/rust.md` for a full Rust usage example.
+
 ## Continuous optimization
 
 Pass a callable objective and per-dimension bounds:

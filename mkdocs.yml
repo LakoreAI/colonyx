@@ -6,6 +6,7 @@ repo_name: minhld/colonyx
 edit_uri: edit/main/docs/
 nav:
   - Home: index.md
+  - Rust: rust.md
   - AutoColony API: autocolony-api.md
   - Getting Started: getting-started.md
   - Examples: examples.md
@@ -24,6 +25,13 @@ nav:
       - BFO: algorithms/bfo.md
       - DE: algorithms/de.md
       - CMA-ES: algorithms/cmaes.md
+      - Advanced:
+          - Overview: algorithms/advanced.md
+          - Permutation GA: algorithms/permutation-ga.md
+          - Binary PSO: algorithms/binary-pso.md
+          - NSGA-II: algorithms/nsga2.md
+          - MOPSO: algorithms/mopso.md
+          - ACO Variants: algorithms/aco-variants.md
   - API: api.md
   - Release: release.md
 theme:

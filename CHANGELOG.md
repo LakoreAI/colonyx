@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1
+
+### Added
+
+- Rust usage documentation with direct examples for continuous and discrete optimizers.
+- Rust library target exposure so the optimization core can be used from Rust code.
+
+### Changed
+
+- The loader shim now recognizes the Rust library artifact produced by the Rust crate target.
+
 ## 0.1.0
 
 ### Added
