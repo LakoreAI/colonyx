@@ -8,9 +8,8 @@
 
 While the interface is Pythonic and easy to use, the core is written in Rust to deliver better performance for larger or more complex problems.
 
-Documentation: see `docs/index.md` for the library guide and API overview.
-
-> This is an early version — contributions, suggestions, and feedback are all welcome.
+[![PyPI version](https://img.shields.io/pypi/v/colonyx)](https://pypi.org/project/colonyx/)
+[![docs](https://img.shields.io/badge/docs-minlee0210.github.io/colonyx-blue)](https://minlee0210.github.io/colonyx/)
 
 ## Features
 
@@ -29,12 +28,8 @@ Documentation: see `docs/index.md` for the library guide and API overview.
 ## Installation
 
 ```bash
-
 pip install colonyx
-
 ```
-
-*(Install from source while release automation is being prepared.)*
 
 ## Example
 
