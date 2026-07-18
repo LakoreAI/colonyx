@@ -29,10 +29,15 @@ jobs:
         run: |
           cargo check --verbose
           cargo build --release
+          cargo clippy --all-targets --all-features -- -D warnings
       - name: Install Python deps
         run: uv sync --group dev
+      - name: Install bandit
+        run: python -m pip install bandit
       - name: Import smoke test
         run: uv run python -c "import colonyx; print(colonyx.__version__)"
+      - name: Security scan
+        run: bandit -r colonyx -q
       - name: Run Python tests
         run: uv run pytest -v
 

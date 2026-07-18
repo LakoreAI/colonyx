@@ -1,7 +1,7 @@
-use crate::algorithms::base::{OptimizationError, Optimizer};
+use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use std::collections::HashMap;
 
 /// Artificial Bee Colony for continuous minimization problems.
@@ -10,6 +10,7 @@ use std::collections::HashMap;
 /// phase (one candidate per source), an onlooker phase (candidates biased
 /// toward better sources), and a scout phase (abandon a source that has not
 /// improved for `limit` trials).
+#[derive(Debug)]
 pub struct BeeColony {
     pub n_bees: usize,
     pub n_iterations: usize,
@@ -58,17 +59,22 @@ impl BeeColony {
         let sn = sources.len();
         let dim = self.bounds.lower.len();
 
-        // Partner source k != i (when more than one source exists).
-        let mut k = rng.gen_range(0..sn);
-        while k == i && sn > 1 {
-            k = rng.gen_range(0..sn);
-        }
-
-        let j = rng.gen_range(0..dim);
-        let phi = rng.gen::<f64>() * 2.0 - 1.0;
-
         let mut candidate = sources[i].clone();
-        candidate[j] = sources[i][j] + phi * (sources[i][j] - sources[k][j]);
+        if sn == 1 {
+            // Single source: random walk instead of differential mutation.
+            let j = rng.gen_range(0..dim);
+            let step = (rng.gen::<f64>() * 2.0 - 1.0) * (self.bounds.upper[j] - self.bounds.lower[j]) * 0.1;
+            candidate[j] = sources[i][j] + step;
+        } else {
+            // Partner source k != i.
+            let mut k = rng.gen_range(0..sn);
+            while k == i {
+                k = rng.gen_range(0..sn);
+            }
+            let j = rng.gen_range(0..dim);
+            let phi = rng.gen::<f64>() * 2.0 - 1.0;
+            candidate[j] = sources[i][j] + phi * (sources[i][j] - sources[k][j]);
+        }
         self.bounds.clamp(&mut candidate);
 
         let fitness = problem.evaluate(&candidate);
@@ -112,10 +118,7 @@ impl Optimizer for BeeColony {
 
         let sn = (self.n_bees / 2).max(1);
 
-        let mut rng = match self.random_seed {
-            Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_entropy(),
-        };
+        let mut rng = make_rng(self.random_seed);
 
         let ranges = self.bounds.ranges();
 

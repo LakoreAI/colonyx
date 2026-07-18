@@ -33,10 +33,10 @@ dependencies = [
 keywords = ["optimization", "swarm", "rust", "pyo3", "sklearn"]
 
 [project.urls]
-Homepage = "https://minhld.github.io/colonyx/"
-Documentation = "https://minhld.github.io/colonyx/"
-Repository = "https://github.com/minhld/colonyx"
-Issues = "https://github.com/minhld/colonyx/issues"
+Homepage = "https://minlee0210.github.io/colonyx/"
+Documentation = "https://minlee0210.github.io/colonyx/"
+Repository = "https://github.com/MinLee0210/colonyx"
+Issues = "https://github.com/MinLee0210/colonyx/issues"
 
 [project.scripts]
 colonyx = "colonyx.cli:main"
@@ -47,7 +47,7 @@ features = ["pyo3/extension-module"]
 # Build the Rust extension as a submodule inside the colonyx package
 # (colonyx/_colonyx.so), re-exported by colonyx/__init__.py.
 module-name = "colonyx._colonyx"
-python-source = "colonyx"
+python-source = "."
 
 [dependency-groups]
 dev = [

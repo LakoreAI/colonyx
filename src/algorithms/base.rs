@@ -15,11 +15,20 @@ pub trait Optimizer {
     fn get_params(&self) -> std::collections::HashMap<String, f64>;
 }
 
-// Use the Problem trait from core module
 pub use crate::core::Problem;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
+
+/// Create a RNG from an optional seed. `None` draws from entropy.
+pub fn make_rng(seed: Option<u64>) -> StdRng {
+    match seed {
+        Some(s) => StdRng::seed_from_u64(s),
+        None => StdRng::from_entropy(),
+    }
+}
 
 /// Error types for optimization
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OptimizationError {
     InvalidInput(String),
     ConvergenceError(String),

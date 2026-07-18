@@ -50,12 +50,17 @@ impl Bounds {
         true
     }
 
-    /// Clamp a solution to be within bounds
+    /// Clamp a solution to be within bounds.
+    /// Panics if the solution has more dimensions than the bounds.
     pub fn clamp(&self, solution: &mut [f64]) {
+        assert!(
+            solution.len() <= self.lower.len(),
+            "solution has {} dimensions but bounds have {}",
+            solution.len(),
+            self.lower.len()
+        );
         for (i, value) in solution.iter_mut().enumerate() {
-            if i < self.lower.len() {
-                *value = value.max(self.lower[i]).min(self.upper[i]);
-            }
+            *value = value.max(self.lower[i]).min(self.upper[i]);
         }
     }
 
@@ -78,15 +83,21 @@ impl Bounds {
     }
 }
 
-/// Bound constraint types
-#[derive(Debug, Clone)]
-pub enum BoundConstraint {
-    /// Hard constraint - solutions outside bounds are invalid
-    Hard,
-    /// Soft constraint - solutions outside bounds are penalized
-    Soft { penalty: f64 },
-    /// Reflect constraint - solutions outside bounds are reflected back
-    Reflect,
-    /// Wrap constraint - solutions outside bounds wrap around
-    Wrap,
+#[cfg(test)]
+mod tests {
+    use super::Bounds;
+
+    #[test]
+    fn uniform_bounds_validate_and_contain() {
+        let bounds = Bounds::uniform(3, -1.0, 1.0).expect("valid bounds");
+        assert!(bounds.contains(&[0.0, 0.5, -0.5]));
+        assert!(!bounds.contains(&[0.0, 0.5]));
+        assert!(!bounds.contains(&[0.0, 2.0, -0.5]));
+    }
+
+    #[test]
+    fn midpoint_is_center_of_bounds() {
+        let bounds = Bounds::new(vec![-2.0, 0.0], vec![2.0, 4.0]).expect("valid bounds");
+        assert_eq!(bounds.midpoint(), vec![0.0, 2.0]);
+    }
 }

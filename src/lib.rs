@@ -24,5 +24,9 @@ fn _colonyx(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<bindings::PyBacterialForagingOptimizer>()?;
     m.add_class::<bindings::PyDifferentialEvolution>()?;
     m.add_class::<bindings::PyCmaEsOptimizer>()?;
+    m.add_class::<bindings::PyPermutationGeneticOptimizer>()?;
+    m.add_class::<bindings::PyBinaryParticleSwarm>()?;
+    m.add_class::<bindings::PyNsga2Optimizer>()?;
+    m.add_class::<bindings::PyMopsoOptimizer>()?;
     Ok(())
 }

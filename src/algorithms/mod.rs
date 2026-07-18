@@ -1,4 +1,5 @@
 pub mod abc;
+pub mod advanced;
 pub mod aco;
 pub mod base;
 pub mod continuous;
@@ -12,5 +13,9 @@ pub use continuous::{
     two_opt, BacterialForagingOptimizer, BatAlgorithm, CmaEsOptimizer, CuckooSearch,
     DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer,
     SimulatedAnnealing,
+};
+pub use advanced::{
+    crowding_distance, dominates, hypervolume_2d, non_dominated_sort, MopsoOptimizer,
+    Nsga2Optimizer, ParetoPoint, PermutationGeneticOptimizer,
 };
 pub use pso::ParticleSwarm;

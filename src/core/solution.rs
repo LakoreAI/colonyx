@@ -62,15 +62,22 @@ impl SolutionSet {
         }
 
         let mut best_idx = 0;
-        let mut best_fitness = self.solutions[0].fitness.unwrap_or(f64::INFINITY);
+        let mut best_fitness = f64::INFINITY;
+        let mut found = false;
 
         for (i, solution) in self.solutions.iter().enumerate() {
             if let Some(fitness) = solution.fitness {
-                if fitness < best_fitness {
+                if !found || fitness < best_fitness {
                     best_fitness = fitness;
                     best_idx = i;
+                    found = true;
                 }
             }
+        }
+
+        if !found {
+            self.best_index = None;
+            return None;
         }
 
         self.best_index = Some(best_idx);
@@ -78,7 +85,12 @@ impl SolutionSet {
     }
 
     pub fn get_best(&self) -> Option<&Solution> {
-        self.best_index.map(|idx| &self.solutions[idx])
+        let idx = self.best_index?;
+        if idx < self.solutions.len() {
+            Some(&self.solutions[idx])
+        } else {
+            None
+        }
     }
 
     pub fn size(&self) -> usize {

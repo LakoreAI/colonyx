@@ -18,9 +18,17 @@
 - `BFO` uses chemotaxis, reproduction, and elimination.
 - `DE` applies mutation, crossover, and greedy selection.
 - `CMA-ES` adapts a diagonal covariance model over generations.
+- Advanced pages:
+  - `PermutationGeneticOptimizer` — `algorithms/permutation-ga.md`
+  - `BinaryParticleSwarm` — `algorithms/binary-pso.md`
+  - `Nsga2Optimizer` — `algorithms/nsga2.md`
+  - `MopsoOptimizer` — `algorithms/mopso.md`
+  - `AntColony` variants — `algorithms/aco-variants.md`
 
 ## Implementation notes
 
 - The Rust core owns all objective evaluation loops.
 - Python only passes callables, bounds, and distance matrices into Rust.
 - `AutoColony` chooses the backend and keeps sklearn-style metadata.
+- Advanced algorithms reuse the same Rust core types (`Bounds`, `Solution`,
+  `Problem`) rather than adding a separate execution path.

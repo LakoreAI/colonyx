@@ -11,8 +11,11 @@ use pyo3::prelude::*;
 use crate::algorithms::{
     two_opt, AntColony, BacterialForagingOptimizer, BatAlgorithm, BeeColony, CmaEsOptimizer,
     CuckooSearch, DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer,
-    Optimizer, ParticleSwarm, SimulatedAnnealing,
+    MopsoOptimizer, Nsga2Optimizer, Optimizer, ParticleSwarm, PermutationGeneticOptimizer,
+    SimulatedAnnealing,
 };
+use crate::algorithms::advanced::BinaryParticleSwarm;
+use crate::algorithms::aco::AcoVariant;
 use crate::core::{Bounds, ContinuousProblem, DiscreteProblem};
 
 /// Build `Bounds` from Python lower/upper lists, surfacing errors as `ValueError`.
@@ -37,6 +40,22 @@ fn make_objective(
         Python::with_gil(|py| match func.call1(py, (x.to_vec(),)) {
             Ok(value) => value.extract::<f64>(py).unwrap_or(f64::INFINITY),
             Err(_) => f64::INFINITY,
+        })
+    }))
+}
+
+fn make_multi_objective(
+    py: Python<'_>,
+    func: PyObject,
+    probe_point: &[f64],
+) -> PyResult<Box<dyn Fn(&[f64]) -> Vec<f64>>> {
+    let probe = func.call1(py, (probe_point.to_vec(),))?;
+    probe.extract::<Vec<f64>>(py)?;
+
+    Ok(Box::new(move |x: &[f64]| -> Vec<f64> {
+        Python::with_gil(|py| match func.call1(py, (x.to_vec(),)) {
+            Ok(value) => value.extract::<Vec<f64>>(py).unwrap_or_else(|_| vec![f64::INFINITY]),
+            Err(_) => vec![f64::INFINITY],
         })
     }))
 }
@@ -66,6 +85,11 @@ impl PyAntColony {
         rho = 0.5,
         q = 1.0,
         use_two_opt = true,
+        variant = "basic",
+        q0 = 0.9,
+        elitist_weight = 2.0,
+        tau_min = 1e-4,
+        tau_max = 10.0,
         random_state = None,
     ))]
     fn new(
@@ -76,9 +100,33 @@ impl PyAntColony {
         rho: f64,
         q: f64,
         use_two_opt: bool,
+        variant: &str,
+        q0: f64,
+        elitist_weight: f64,
+        tau_min: f64,
+        tau_max: f64,
         random_state: Option<u64>,
     ) -> Self {
-        let mut inner = AntColony::new(n_ants, n_iterations, alpha, beta, rho, q, use_two_opt);
+        let variant = match variant {
+            "acs" => AcoVariant::Acs,
+            "elitist" => AcoVariant::Elitist,
+            "mmas" => AcoVariant::Mmas,
+            _ => AcoVariant::Basic,
+        };
+        let mut inner = AntColony::new(
+            n_ants,
+            n_iterations,
+            alpha,
+            beta,
+            rho,
+            q,
+            use_two_opt,
+            variant,
+            q0,
+            elitist_weight,
+            tau_min,
+            tau_max,
+        );
         inner.set_random_seed(random_state);
         Self {
             inner,
@@ -1373,6 +1421,481 @@ impl PyCmaEsOptimizer {
         params.insert("n_individuals".to_string(), self.n_individuals as f64);
         params.insert("n_iterations".to_string(), self.n_iterations as f64);
         params.insert("sigma".to_string(), self.sigma);
+        params
+    }
+}
+
+/// Permutation genetic optimizer for TSP-like discrete problems.
+#[pyclass(name = "PermutationGeneticOptimizer")]
+pub struct PyPermutationGeneticOptimizer {
+    n_individuals: usize,
+    n_iterations: usize,
+    mutation_rate: f64,
+    use_two_opt: bool,
+    random_state: Option<u64>,
+    best_tour: Option<Vec<usize>>,
+    best_length: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+/// Binary PSO for bit-vector objectives.
+#[pyclass(name = "BinaryParticleSwarm")]
+pub struct PyBinaryParticleSwarm {
+    n_particles: usize,
+    n_iterations: usize,
+    w: f64,
+    c1: f64,
+    c2: f64,
+    random_state: Option<u64>,
+    best_position: Option<Vec<f64>>,
+    best_score: Option<f64>,
+    #[pyo3(get)]
+    history_: Vec<f64>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyBinaryParticleSwarm {
+    #[new]
+    #[pyo3(signature = (
+        n_particles = 30,
+        n_iterations = 100,
+        w = 0.7,
+        c1 = 1.5,
+        c2 = 1.5,
+        random_state = None,
+    ))]
+    fn new(
+        n_particles: usize,
+        n_iterations: usize,
+        w: f64,
+        c1: f64,
+        c2: f64,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_particles,
+            n_iterations,
+            w,
+            c1,
+            c2,
+            random_state,
+            best_position: None,
+            best_score: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let dimensions = bounds.lower.len();
+        let objective_function = make_objective(py, objective, &vec![0.0; dimensions])?;
+
+        let mut optimizer = BinaryParticleSwarm::new(
+            self.n_particles,
+            self.n_iterations,
+            self.w,
+            self.c1,
+            self.c2,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit_with_objective(&objective_function, dimensions)
+            .map_err(|e: crate::algorithms::base::OptimizationError| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.best_solution {
+            self.best_position = Some(solution.variables);
+            self.best_score = solution.fitness;
+        }
+        self.history_ = optimizer.history;
+        self.population_ = optimizer.population;
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<f64>> {
+        self.best_position
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_score
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_particles".to_string(), self.n_particles as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("w".to_string(), self.w);
+        params.insert("c1".to_string(), self.c1);
+        params.insert("c2".to_string(), self.c2);
+        params
+    }
+}
+
+#[pymethods]
+impl PyPermutationGeneticOptimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_individuals = 40,
+        n_iterations = 100,
+        mutation_rate = 0.1,
+        use_two_opt = true,
+        random_state = None,
+    ))]
+    fn new(
+        n_individuals: usize,
+        n_iterations: usize,
+        mutation_rate: f64,
+        use_two_opt: bool,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_individuals,
+            n_iterations,
+            mutation_rate,
+            use_two_opt,
+            random_state,
+            best_tour: None,
+            best_length: None,
+            history_: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    fn fit(&mut self, distance_matrix: Vec<Vec<f64>>) -> PyResult<()> {
+        let n = distance_matrix.len();
+        if n == 0 {
+            return Err(PyValueError::new_err("distance_matrix must be non-empty"));
+        }
+        for (i, row) in distance_matrix.iter().enumerate() {
+            if row.len() != n {
+                return Err(PyValueError::new_err(format!(
+                    "distance_matrix must be square: row {} has length {}, expected {}",
+                    i,
+                    row.len(),
+                    n
+                )));
+            }
+        }
+
+        let problem = DiscreteProblem {
+            name: "tsp".to_string(),
+            distance_matrix,
+        };
+
+        let mut optimizer = PermutationGeneticOptimizer::new(
+            self.n_individuals,
+            self.n_iterations,
+            self.mutation_rate,
+            self.use_two_opt,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit(&problem)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        if let Some(solution) = optimizer.predict() {
+            self.best_tour = Some(solution.variables.iter().map(|value| *value as usize).collect());
+            self.best_length = solution.fitness;
+            self.history_ = optimizer.history;
+            self.population_ = optimizer.population;
+        }
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<usize>> {
+        self.best_tour
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("must call fit() before predict()"))
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        self.best_length
+            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_individuals".to_string(), self.n_individuals as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("mutation_rate".to_string(), self.mutation_rate);
+        params.insert("use_two_opt".to_string(), if self.use_two_opt { 1.0 } else { 0.0 });
+        params
+    }
+}
+
+/// NSGA-II-style multi-objective optimizer.
+#[pyclass(name = "Nsga2Optimizer")]
+pub struct PyNsga2Optimizer {
+    n_individuals: usize,
+    n_iterations: usize,
+    crossover_rate: f64,
+    mutation_rate: f64,
+    mutation_scale: f64,
+    archive_size: usize,
+    random_state: Option<u64>,
+    best_front: Vec<Vec<f64>>,
+    best_objectives: Vec<Vec<f64>>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyNsga2Optimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_individuals = 40,
+        n_iterations = 100,
+        crossover_rate = 0.9,
+        mutation_rate = 0.1,
+        mutation_scale = 0.1,
+        archive_size = 50,
+        random_state = None,
+    ))]
+    fn new(
+        n_individuals: usize,
+        n_iterations: usize,
+        crossover_rate: f64,
+        mutation_rate: f64,
+        mutation_scale: f64,
+        archive_size: usize,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_individuals,
+            n_iterations,
+            crossover_rate,
+            mutation_rate,
+            mutation_scale,
+            archive_size,
+            random_state,
+            best_front: Vec::new(),
+            best_objectives: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let objective_function = make_multi_objective(py, objective, &bounds.midpoint())?;
+        let mut optimizer = Nsga2Optimizer::new(
+            self.n_individuals,
+            self.n_iterations,
+            self.crossover_rate,
+            self.mutation_rate,
+            self.mutation_scale,
+            self.archive_size,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit_with_objective(&objective_function)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        self.population_ = optimizer.population;
+        self.best_front = optimizer
+            .best_front
+            .iter()
+            .map(|point| point.variables.clone())
+            .collect();
+        self.best_objectives = optimizer
+            .best_front
+            .iter()
+            .map(|point| point.objectives.clone())
+            .collect();
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<Vec<f64>>> {
+        if self.best_front.is_empty() {
+            return Err(PyValueError::new_err("must call fit() before predict()"));
+        }
+        Ok(self.best_front.clone())
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        if self.best_objectives.is_empty() {
+            return Err(PyValueError::new_err("must call fit() before score()"));
+        }
+        if self.best_objectives[0].len() >= 2 {
+            let points = self
+                .best_front
+                .iter()
+                .zip(self.best_objectives.iter())
+                .map(|(variables, objectives)| crate::algorithms::advanced::ParetoPoint {
+                    variables: variables.clone(),
+                    objectives: objectives.clone(),
+                })
+                .collect::<Vec<_>>();
+            Ok(crate::algorithms::advanced::hypervolume_2d(&points, [1.0, 1.0]))
+        } else {
+            Ok(0.0)
+        }
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_individuals".to_string(), self.n_individuals as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("crossover_rate".to_string(), self.crossover_rate);
+        params.insert("mutation_rate".to_string(), self.mutation_rate);
+        params.insert("mutation_scale".to_string(), self.mutation_scale);
+        params.insert("archive_size".to_string(), self.archive_size as f64);
+        params
+    }
+}
+
+/// Multi-objective PSO.
+#[pyclass(name = "MopsoOptimizer")]
+pub struct PyMopsoOptimizer {
+    n_particles: usize,
+    n_iterations: usize,
+    w: f64,
+    c1: f64,
+    c2: f64,
+    mutation_scale: f64,
+    archive_size: usize,
+    random_state: Option<u64>,
+    best_front: Vec<Vec<f64>>,
+    best_objectives: Vec<Vec<f64>>,
+    #[pyo3(get)]
+    population_: Vec<Vec<f64>>,
+}
+
+#[pymethods]
+impl PyMopsoOptimizer {
+    #[new]
+    #[pyo3(signature = (
+        n_particles = 30,
+        n_iterations = 100,
+        w = 0.7,
+        c1 = 1.5,
+        c2 = 1.5,
+        mutation_scale = 0.1,
+        archive_size = 50,
+        random_state = None,
+    ))]
+    fn new(
+        n_particles: usize,
+        n_iterations: usize,
+        w: f64,
+        c1: f64,
+        c2: f64,
+        mutation_scale: f64,
+        archive_size: usize,
+        random_state: Option<u64>,
+    ) -> Self {
+        Self {
+            n_particles,
+            n_iterations,
+            w,
+            c1,
+            c2,
+            mutation_scale,
+            archive_size,
+            random_state,
+            best_front: Vec::new(),
+            best_objectives: Vec::new(),
+            population_: Vec::new(),
+        }
+    }
+
+    #[pyo3(signature = (objective, lower, upper))]
+    fn fit(
+        &mut self,
+        py: Python<'_>,
+        objective: PyObject,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+    ) -> PyResult<()> {
+        let bounds = build_bounds(lower, upper)?;
+        let objective_function = make_multi_objective(py, objective, &bounds.midpoint())?;
+        let mut optimizer = MopsoOptimizer::new(
+            self.n_particles,
+            self.n_iterations,
+            self.w,
+            self.c1,
+            self.c2,
+            self.mutation_scale,
+            self.archive_size,
+            bounds,
+        );
+        optimizer.set_random_seed(self.random_state);
+        optimizer
+            .fit_with_objective(&objective_function)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+
+        self.population_ = optimizer.population;
+        self.best_front = optimizer
+            .archive
+            .iter()
+            .map(|point| point.variables.clone())
+            .collect();
+        self.best_objectives = optimizer
+            .archive
+            .iter()
+            .map(|point| point.objectives.clone())
+            .collect();
+        Ok(())
+    }
+
+    fn predict(&self) -> PyResult<Vec<Vec<f64>>> {
+        if self.best_front.is_empty() {
+            return Err(PyValueError::new_err("must call fit() before predict()"));
+        }
+        Ok(self.best_front.clone())
+    }
+
+    fn score(&self) -> PyResult<f64> {
+        if self.best_objectives.is_empty() {
+            return Err(PyValueError::new_err("must call fit() before score()"));
+        }
+        if self.best_objectives[0].len() >= 2 {
+            let points = self
+                .best_front
+                .iter()
+                .zip(self.best_objectives.iter())
+                .map(|(variables, objectives)| crate::algorithms::advanced::ParetoPoint {
+                    variables: variables.clone(),
+                    objectives: objectives.clone(),
+                })
+                .collect::<Vec<_>>();
+            Ok(crate::algorithms::advanced::hypervolume_2d(&points, [1.0, 1.0]))
+        } else {
+            Ok(0.0)
+        }
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_particles".to_string(), self.n_particles as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("w".to_string(), self.w);
+        params.insert("c1".to_string(), self.c1);
+        params.insert("c2".to_string(), self.c2);
+        params.insert("mutation_scale".to_string(), self.mutation_scale);
+        params.insert("archive_size".to_string(), self.archive_size as f64);
         params
     }
 }

@@ -55,11 +55,14 @@ pub struct DiscreteProblem {
 
 impl Problem for DiscreteProblem {
     fn evaluate(&self, solution: &[f64]) -> f64 {
-        // Calculate tour length
         let mut total = 0.0;
+        let n = self.distance_matrix.len();
         for i in 0..solution.len() {
             let from = solution[i] as usize;
             let to = solution[(i + 1) % solution.len()] as usize;
+            if from >= n || to >= n {
+                return f64::INFINITY;
+            }
             total += self.distance_matrix[from][to];
         }
         total
@@ -79,5 +82,33 @@ impl Problem for DiscreteProblem {
 
     fn distance_matrix(&self) -> Option<&[Vec<f64>]> {
         Some(&self.distance_matrix)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ContinuousProblem, DiscreteProblem, Problem};
+
+    #[test]
+    fn continuous_problem_evaluates_sphere() {
+        let problem = ContinuousProblem::sphere(3, None);
+        assert_eq!(problem.evaluate(&[1.0, 2.0, 3.0]), 14.0);
+        assert!(!problem.is_discrete());
+        assert_eq!(problem.dimensions(), 3);
+    }
+
+    #[test]
+    fn discrete_problem_evaluates_tour_length() {
+        let problem = DiscreteProblem {
+            name: "toy".to_string(),
+            distance_matrix: vec![
+                vec![0.0, 1.0, 2.0],
+                vec![1.0, 0.0, 3.0],
+                vec![2.0, 3.0, 0.0],
+            ],
+        };
+        assert_eq!(problem.evaluate(&[0.0, 1.0, 2.0]), 6.0);
+        assert!(problem.is_discrete());
+        assert_eq!(problem.distance_matrix().unwrap().len(), 3);
     }
 }

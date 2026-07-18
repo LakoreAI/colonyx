@@ -1,7 +1,6 @@
-use crate::algorithms::base::{OptimizationError, Optimizer};
+use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use std::collections::HashMap;
 
 /// Initial velocities are drawn from +/- this fraction of each dimension's range.
@@ -11,6 +10,7 @@ const INIT_VELOCITY_SCALE: f64 = 0.1;
 ///
 /// Bounds define the search space (and its dimensionality); the objective is
 /// supplied through the `Problem` passed to `fit`.
+#[derive(Debug)]
 pub struct ParticleSwarm {
     pub n_particles: usize,
     pub n_iterations: usize,
@@ -68,10 +68,7 @@ impl Optimizer for ParticleSwarm {
             )));
         }
 
-        let mut rng = match self.random_seed {
-            Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_entropy(),
-        };
+        let mut rng = make_rng(self.random_seed);
 
         let ranges = self.bounds.ranges();
 

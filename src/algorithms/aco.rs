@@ -1,14 +1,23 @@
-use crate::algorithms::base::{OptimizationError, Optimizer};
+use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
 use crate::algorithms::continuous::two_opt;
 use crate::core::{Problem, Solution};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use std::collections::HashMap;
 
 /// Smallest distance used when computing the inverse-distance heuristic, so
 /// zero-distance edges don't produce an infinite attractiveness.
 const MIN_DISTANCE: f64 = 1e-10;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AcoVariant {
+    Basic,
+    Acs,
+    Elitist,
+    Mmas,
+}
+
+#[derive(Debug)]
 pub struct AntColony {
     pub n_ants: usize,
     pub n_iterations: usize,
@@ -17,6 +26,11 @@ pub struct AntColony {
     pub rho: f64,   // Evaporation rate
     pub q: f64,     // Q value for pheromone update
     pub use_two_opt: bool,
+    pub variant: AcoVariant,
+    pub q0: f64,
+    pub elitist_weight: f64,
+    pub tau_min: f64,
+    pub tau_max: f64,
 
     // Internal state using core types
     pheromone_matrix: Option<Vec<Vec<f64>>>,
@@ -34,6 +48,11 @@ impl AntColony {
         rho: f64,
         q: f64,
         use_two_opt: bool,
+        variant: AcoVariant,
+        q0: f64,
+        elitist_weight: f64,
+        tau_min: f64,
+        tau_max: f64,
     ) -> Self {
         Self {
             n_ants,
@@ -43,6 +62,11 @@ impl AntColony {
             rho,
             q,
             use_two_opt,
+            variant,
+            q0,
+            elitist_weight,
+            tau_min,
+            tau_max,
             pheromone_matrix: None,
             best_solution: None,
             random_seed: None,
@@ -126,6 +150,14 @@ impl AntColony {
             return candidates[pick].0;
         }
 
+        if self.variant == AcoVariant::Acs && rng.gen::<f64>() < self.q0 {
+            return candidates
+                .iter()
+                .max_by(|left, right| left.1.partial_cmp(&right.1).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|candidate| candidate.0)
+                .unwrap_or(candidates[0].0);
+        }
+
         // Roulette-wheel selection.
         let threshold = rng.gen::<f64>() * total;
         let mut acc = 0.0;
@@ -178,6 +210,32 @@ impl AntColony {
                 pheromone[to][from] += deposit;
             }
         }
+
+        if matches!(self.variant, AcoVariant::Elitist | AcoVariant::Acs | AcoVariant::Mmas) {
+            if let Some(best_solution) = self.best_solution.as_ref() {
+                if let Some(length) = best_solution.fitness {
+                    if length > 0.0 {
+                        let deposit = self.elitist_weight * q / length;
+                        let tour = &best_solution.variables;
+                        let m = tour.len();
+                        for idx in 0..m {
+                            let from = tour[idx] as usize;
+                            let to = tour[(idx + 1) % m] as usize;
+                            pheromone[from][to] += deposit;
+                            pheromone[to][from] += deposit;
+                        }
+                    }
+                }
+            }
+        }
+
+        if self.variant == AcoVariant::Mmas {
+            for row in pheromone.iter_mut() {
+                for value in row.iter_mut() {
+                    *value = value.max(self.tau_min).min(self.tau_max);
+                }
+            }
+        }
     }
 }
 
@@ -198,10 +256,7 @@ impl Optimizer for AntColony {
 
         let mut best_fitness = f64::INFINITY;
 
-        let mut rng = match self.random_seed {
-            Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_entropy(),
-        };
+        let mut rng = make_rng(self.random_seed);
 
         // Main ACO loop
         for iteration in 0..self.n_iterations {
@@ -265,6 +320,12 @@ impl Optimizer for AntColony {
         params.insert("beta".to_string(), self.beta);
         params.insert("rho".to_string(), self.rho);
         params.insert("q".to_string(), self.q);
+        params.insert("use_two_opt".to_string(), if self.use_two_opt { 1.0 } else { 0.0 });
+        params.insert("variant".to_string(), self.variant as usize as f64);
+        params.insert("q0".to_string(), self.q0);
+        params.insert("elitist_weight".to_string(), self.elitist_weight);
+        params.insert("tau_min".to_string(), self.tau_min);
+        params.insert("tau_max".to_string(), self.tau_max);
         params
     }
 }
@@ -298,7 +359,7 @@ mod tests {
 
     #[test]
     fn constructs_valid_permutation() {
-        let mut aco = AntColony::new(10, 20, 1.0, 2.0, 0.5, 1.0, true);
+        let mut aco = AntColony::new(10, 20, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
         aco.set_random_seed(Some(1));
         aco.fit(&ring_problem(6)).unwrap();
 
@@ -310,7 +371,7 @@ mod tests {
 
     #[test]
     fn evaporation_scales_pheromone_by_one_minus_rho() {
-        let mut aco = AntColony::new(5, 1, 1.0, 2.0, 0.5, 1.0, true);
+        let mut aco = AntColony::new(5, 1, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
         aco.initialize_pheromone_matrix(4);
         let before = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
@@ -324,7 +385,7 @@ mod tests {
 
     #[test]
     fn deposit_adds_symmetric_pheromone_on_used_edges() {
-        let mut aco = AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true); // rho=0 => no evaporation
+        let mut aco = AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0); // rho=0 => no evaporation
         aco.initialize_pheromone_matrix(3);
         let base = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
@@ -343,7 +404,7 @@ mod tests {
         // beta = 0 disables the distance heuristic, so reaching the optimum
         // proves the pheromone deposit/evaporation loop is doing the learning.
         let n = 8;
-        let mut aco = AntColony::new(20, 100, 1.0, 0.0, 0.5, 1.0, true);
+        let mut aco = AntColony::new(20, 100, 1.0, 0.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
         aco.set_random_seed(Some(42));
         aco.fit(&ring_problem(n)).unwrap();
 
@@ -352,7 +413,7 @@ mod tests {
 
     #[test]
     fn rejects_empty_problem() {
-        let mut aco = AntColony::new(5, 10, 1.0, 2.0, 0.5, 1.0, true);
+        let mut aco = AntColony::new(5, 10, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
         let empty = DiscreteProblem {
             name: "empty".to_string(),
             distance_matrix: vec![],

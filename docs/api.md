@@ -34,9 +34,15 @@ Available from `colonyx._colonyx`:
 - `GlowwormOptimizer`
 - `BacterialForagingOptimizer`
 - `DifferentialEvolution`
+- `CmaEsOptimizer`
+- `PermutationGeneticOptimizer`
+- `BinaryParticleSwarm`
+- `Nsga2Optimizer`
+- `MopsoOptimizer`
 - `two_opt`
 
 ## Return values
 
 - Continuous optimizers return the best position and best score.
 - ACO returns the best tour and tour length.
+- Multi-objective optimizers return a Pareto archive via `predict()`.

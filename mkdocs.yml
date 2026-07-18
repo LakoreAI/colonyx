@@ -1,8 +1,8 @@
 site_name: colonyx
 site_description: Rust-backed swarm intelligence optimization for Python
-site_url: https://minhld.github.io/colonyx/
-repo_url: https://github.com/minhld/colonyx
-repo_name: minhld/colonyx
+site_url: https://minlee0210.github.io/colonyx/
+repo_url: https://github.com/MinLee0210/colonyx
+repo_name: MinLee0210/colonyx
 edit_uri: edit/main/docs/
 nav:
   - Home: index.md

@@ -1,13 +1,13 @@
 [package]
 name = "colonyx"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "Rust-backed swarm intelligence optimization for Python"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/minhld/colonyx"
-homepage = "https://minhld.github.io/colonyx/"
-documentation = "https://minhld.github.io/colonyx/"
+repository = "https://github.com/MinLee0210/colonyx"
+homepage = "https://minlee0210.github.io/colonyx/"
+documentation = "https://minlee0210.github.io/colonyx/"
 keywords = ["optimization", "swarm", "python", "pyo3"]
 categories = ["algorithms", "mathematics"]
 

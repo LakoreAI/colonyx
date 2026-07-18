@@ -132,8 +132,8 @@ def test_default_search_spaces_are_mode_specific():
     distributions = AutoColony.default_param_distributions()
 
     assert isinstance(grids, list)
-    assert {entry["mode"][0] for entry in grids} == {"aco", "pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "de"}
-    assert set(distributions) == {"aco", "pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "de"}
+    assert {entry["mode"][0] for entry in grids} == {"aco", "pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "bfo", "de", "cmaes"}
+    assert set(distributions) == {"aco", "pso", "abc", "gwo", "fa", "sa", "cs", "ba", "gso", "bfo", "de", "cmaes"}
 
 
 def test_recommend_algorithm_uses_problem_shape():

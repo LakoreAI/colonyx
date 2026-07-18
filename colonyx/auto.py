@@ -7,13 +7,13 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import TransformerMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.utils._tags import InputTags, Tags, TargetTags, TransformerTags
 from sklearn.utils.validation import validate_data
 
-from .base import OptimizerMixin
+from .base import BaseOptimizer
 from .metrics import (
     aggregate_runs,
     computational_efficiency,
@@ -28,7 +28,7 @@ from .metrics import (
 from .utils import check_bounds, check_objective_function, check_optimization_problem
 
 
-class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
+class AutoColony(BaseOptimizer, TransformerMixin):
     """
     Unified interface for swarm intelligence optimization algorithms.
 
@@ -97,6 +97,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
         step_scale: float = 0.1,
         n_nests: int = 25,
         pa: float = 0.25,
+        cs_alpha: float = 0.01,
         levy_scale: float = 1.0,
         n_bats: int = 30,
         fmin: float = 0.0,
@@ -121,6 +122,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
         cr: float = 0.9,
         cmaes_sigma: float = 0.5,
     ):
+        super().__init__(mode=mode, n_iterations=n_iterations, random_state=random_state)
         self.mode = mode
         self.n_iterations = n_iterations
         self.random_state = random_state
@@ -145,6 +147,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
         self.step_scale = step_scale
         self.n_nests = n_nests
         self.pa = pa
+        self.cs_alpha = cs_alpha
         self.levy_scale = levy_scale
         self.n_bats = n_bats
         self.fmin = fmin
@@ -306,6 +309,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "random_state": "random_state",
                 "n_nests": "n_nests",
                 "pa": "pa",
+                "cs_alpha": "alpha",
                 "levy_scale": "levy_scale",
             },
             "ba": {
@@ -415,6 +419,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "n_iterations": max(self.n_iterations, 80),
                 "n_nests": min(max(10, size * 3), 50),
                 "pa": 0.25,
+                "cs_alpha": 0.01,
                 "levy_scale": 1.0,
             }
 
@@ -566,6 +571,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 **base_params,
                 "n_nests": self.n_nests,
                 "pa": self.pa,
+                "cs_alpha": self.cs_alpha,
                 "levy_scale": self.levy_scale,
             }
 
@@ -714,7 +720,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 n_nests=int(params["n_nests"]),
                 n_iterations=int(params["n_iterations"]),
                 pa=float(params["pa"]),
-                alpha=float(params["levy_scale"]),
+                alpha=float(params["cs_alpha"]),
                 levy_scale=float(params["levy_scale"]),
                 random_state=params["random_state"],
             )
@@ -1038,11 +1044,12 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
             {"mode": ["gwo"], "n_wolves": [10, 30], "n_iterations": [50, 100]},
             {"mode": ["fa"], "n_fireflies": [10, 30], "beta0": [0.5, 1.0], "gamma": [0.5, 1.0]},
             {"mode": ["sa"], "initial_temperature": [5.0, 10.0], "cooling_rate": [0.9, 0.95]},
-            {"mode": ["cs"], "n_nests": [10, 25], "pa": [0.1, 0.25]},
+            {"mode": ["cs"], "n_nests": [10, 25], "pa": [0.1, 0.25], "cs_alpha": [0.005, 0.01, 0.05]},
             {"mode": ["ba"], "n_bats": [10, 30], "fmin": [0.0, 1.0], "fmax": [1.5, 2.0]},
             {"mode": ["gso"], "n_worms": [10, 30], "neighborhood_radius": [0.5, 1.0]},
             {"mode": ["bfo"], "n_bacteria": [10, 30], "n_chemotactic_steps": [5, 10]},
             {"mode": ["de"], "n_individuals": [20, 40], "f": [0.5, 0.8], "cr": [0.7, 0.9]},
+            {"mode": ["cmaes"], "n_individuals": [10, 20], "cmaes_sigma": [0.3, 0.5]},
         ]
 
     @classmethod
@@ -1055,11 +1062,12 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
             "gwo": {"n_wolves": [10, 20, 30], "n_iterations": [50, 100, 150]},
             "fa": {"n_fireflies": [10, 20, 30], "beta0": [0.5, 1.0], "gamma": [0.5, 1.0], "fa_alpha": [0.1, 0.2, 0.3]},
             "sa": {"initial_temperature": [5.0, 10.0], "cooling_rate": [0.9, 0.95], "step_scale": [0.05, 0.1]},
-            "cs": {"n_nests": [10, 25], "pa": [0.1, 0.25], "levy_scale": [0.5, 1.0]},
+            "cs": {"n_nests": [10, 25], "pa": [0.1, 0.25], "cs_alpha": [0.005, 0.01, 0.05], "levy_scale": [0.5, 1.0]},
             "ba": {"n_bats": [10, 20, 30], "fmin": [0.0, 0.5], "fmax": [1.5, 2.0], "bat_alpha": [0.8, 0.9], "bat_gamma": [0.8, 0.9]},
             "gso": {"n_worms": [10, 20, 30], "luciferin_decay": [0.3, 0.4], "luciferin_enhancement": [0.5, 0.6]},
             "bfo": {"n_bacteria": [10, 20, 30], "n_chemotactic_steps": [5, 10], "n_reproduction_steps": [2, 4]},
             "de": {"n_individuals": [20, 30, 40], "f": [0.5, 0.8, 1.0], "cr": [0.6, 0.8, 0.9]},
+            "cmaes": {"n_individuals": [10, 20, 30], "cmaes_sigma": [0.3, 0.5, 0.8]},
         }
 
     @classmethod
@@ -1138,6 +1146,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
             "step_scale": self.step_scale,
             "n_nests": self.n_nests,
             "pa": self.pa,
+            "cs_alpha": self.cs_alpha,
             "levy_scale": self.levy_scale,
             "n_bats": self.n_bats,
             "fmin": self.fmin,
@@ -1160,6 +1169,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
             "n_individuals": self.n_individuals,
             "f": self.f,
             "cr": self.cr,
+            "cmaes_sigma": self.cmaes_sigma,
         }
         return params
 
@@ -1191,6 +1201,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "step_scale",
                 "n_nests",
                 "pa",
+                "cs_alpha",
                 "levy_scale",
                 "n_bats",
                 "fmin",
@@ -1213,6 +1224,7 @@ class AutoColony(OptimizerMixin, TransformerMixin, BaseEstimator):
                 "n_individuals",
                 "f",
                 "cr",
+                "cmaes_sigma",
             }:
                 setattr(self, key, value)
             else:

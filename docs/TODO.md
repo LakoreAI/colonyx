@@ -33,21 +33,21 @@
   - [x] Add `python/colonyx/auto.py` for auto-selection logic
 
 ### **0.2 Development Environment & Tools**
-- [ ] **Testing Infrastructure**
+- [x] **Testing Infrastructure**
   - [ ] Set up `pytest` configuration with coverage
-  - [ ] Add `tox.ini` for multi-Python version testing
+  - [x] Add `tox.ini` for multi-Python version testing
   - [ ] Configure `pytest-benchmark` for performance testing
   - [ ] Add property-based testing with `hypothesis`
-  - [ ] Set up Rust unit tests with `cargo test`
+  - [x] Set up Rust unit tests with `cargo test`
   - [ ] Add integration tests between Rust and Python
 
-- [ ] **Code Quality Tools**
-  - [ ] Configure `ruff` for Python linting and formatting
-  - [ ] Add `mypy` configuration for type checking
-  - [ ] Set up `clippy` for Rust linting
-  - [ ] Add `rustfmt` configuration
-  - [ ] Configure `pre-commit` hooks
-  - [ ] Add `bandit` for security checks
+- [x] **Code Quality Tools**
+  - [x] Configure `ruff` for Python linting and formatting
+  - [x] Add `mypy` configuration for type checking
+  - [x] Set up `clippy` for Rust linting
+  - [x] Add `rustfmt` configuration
+  - [x] Configure `pre-commit` hooks
+  - [x] Add `bandit` for security checks
 
 - [ ] **Documentation Setup**
   - [ ] Set up `sphinx` with scikit-learn theme
@@ -70,40 +70,40 @@
   - [x] Add mode-specific parameter constraints and validation
   - [x] Support algorithm-specific parameters with clear documentation
 
-- [ ] **BaseOptimizer Abstract Class (Python)**
-  - [ ] Implement `__init__` with parameter validation
-  - [ ] Add `get_params()` and `set_params()` methods
-  - [ ] Implement `fit(X, y=None)` method signature
-  - [ ] Add `score(X, y=None)` method for optimization quality
-  - [ ] Implement `_validate_params()` using sklearn's validation
-  - [ ] Add `_more_tags()` method for estimator metadata
-  - [ ] Implement `__repr__()` with proper parameter display
+- [x] **BaseOptimizer Abstract Class (Python)**
+  - [x] Implement `__init__` with parameter validation
+  - [x] Add `get_params()` and `set_params()` methods
+  - [x] Implement `fit(X, y=None)` method signature
+  - [x] Add `score(X, y=None)` method for optimization quality
+  - [x] Implement `_validate_params()` using sklearn's validation
+  - [x] Add `_more_tags()` method for estimator metadata
+  - [x] Implement `__repr__()` with proper parameter display
 
-- [ ] **Parameter Validation & Constraints**
-  - [ ] Create parameter constraint classes (Interval, StrOptions, etc.)
-  - [ ] Add input validation for optimization problems
-  - [ ] Implement bounds checking for continuous problems
-  - [ ] Add graph validation for discrete problems
-  - [ ] Create custom exception classes for optimization errors
+- [x] **Parameter Validation & Constraints**
+  - [x] Create parameter constraint classes (Interval, StrOptions, etc.)
+  - [x] Add input validation for optimization problems
+  - [x] Implement bounds checking for continuous problems
+  - [x] Add graph validation for discrete problems
+  - [x] Create custom exception classes for optimization errors
 
 ### **1.2 Problem Definition Classes**
-- [ ] **BaseProblem Abstract Class**
-  - [ ] Define interface for fitness/objective functions
-  - [ ] Add problem dimension and bounds properties
-  - [ ] Implement problem type classification (continuous/discrete)
-  - [ ] Add problem metadata (name, description, optimal_value)
+- [x] **BaseProblem Abstract Class**
+  - [x] Define interface for fitness/objective functions
+  - [x] Add problem dimension and bounds properties
+  - [x] Implement problem type classification (continuous/discrete)
+  - [x] Add problem metadata (name, description, optimal_value)
 
-- [ ] **ContinuousProblem Class**
-  - [ ] Support for multidimensional continuous functions
-  - [ ] Bounds handling (box constraints)
-  - [ ] Gradient information (if available)
-  - [ ] Built-in test functions (Sphere, Rosenbrock, Rastrigin, etc.)
+- [x] **ContinuousProblem Class**
+  - [x] Support for multidimensional continuous functions
+  - [x] Bounds handling (box constraints)
+  - [x] Gradient information (if available)
+  - [x] Built-in test functions (Sphere, Rosenbrock, Rastrigin, etc.)
 
-- [ ] **DiscreteProblem Class**
-  - [ ] Graph representation for TSP-like problems
-  - [ ] Adjacency matrix and distance matrix support
-  - [ ] Constraint handling for discrete optimization
-  - [ ] Support for custom discrete problems
+- [x] **DiscreteProblem Class**
+  - [x] Graph representation for TSP-like problems
+  - [x] Adjacency matrix and distance matrix support
+  - [x] Constraint handling for discrete optimization
+  - [x] Support for custom discrete problems
 
 ---
 
@@ -443,17 +443,17 @@
   - [ ] Add performance regression tests
 
 ### **9.2 Continuous Integration**
-- [ ] **GitHub Actions Setup**
-  - [ ] Multi-platform testing (Linux, macOS, Windows)
+- [x] **GitHub Actions Setup**
+  - [x] Multi-platform testing (Linux, macOS, Windows)
   - [ ] Multi-Python version testing (3.8-3.12)
   - [ ] Rust testing with multiple toolchains
   - [ ] Performance benchmarking in CI
 
 - [ ] **Code Quality Gates**
   - [ ] Add automated code review
-  - [ ] Implement security scanning
+  - [x] Implement security scanning
   - [ ] Add dependency vulnerability checks
-  - [ ] Create automated documentation builds
+  - [x] Create automated documentation builds
 
 ---
 
@@ -466,15 +466,15 @@
   - [ ] Create manylinux wheels
   - [ ] Add Windows wheel building
 
-- [ ] **Package Metadata**
-  - [ ] Complete `pyproject.toml` configuration
-  - [ ] Add comprehensive package classifiers
-  - [ ] Create detailed package description
-  - [ ] Add proper license information
+- [x] **Package Metadata**
+  - [x] Complete `pyproject.toml` configuration
+  - [x] Add comprehensive package classifiers
+  - [x] Create detailed package description
+  - [x] Add proper license information
 
 ### **10.2 Release Process**
-- [ ] **Release Automation**
-  - [ ] Create automated release workflow
+- [x] **Release Automation**
+  - [x] Create automated release workflow
   - [ ] Add changelog generation
   - [ ] Implement semantic versioning
   - [ ] Add release notes template
@@ -573,18 +573,18 @@ Continuous algorithms reuse the existing Python-callable objective bridge and
 - [x] **Bat Algorithm (BA)** — 3 pts · frequency/loudness/pulse-rate tuning
 - [x] **Glowworm (GSO)** — 5 pts · roadmap algorithm, luciferin + dynamic neighborhoods
 - [x] **Bacterial Foraging (BFO)** — 8 pts · roadmap algorithm, chemotaxis/reproduction/elimination
-- [ ] **CMA-ES** — 8 pts · strongest continuous optimizer, real covariance-adaptation math
+- [x] **CMA-ES** — 8 pts · strongest continuous optimizer, real covariance-adaptation math
 
 ### **Discrete / combinatorial (moderate new work) — total 15 pts**
 - [x] **2-opt local search** — 2 pts · cheap ACO tour-improvement hybrid
-- [ ] **Binary/Discrete PSO** — 3 pts · reuses PSO structure
-- [ ] **ACO variants** (Ant Colony System, Max-Min AS, Elitist) — 5 pts · extend existing `aco.rs`
-- [ ] **Genetic Algorithm (GA) for permutations/TSP** — 5 pts · order-crossover + mutation on tours
+- [x] **Binary/Discrete PSO** — 3 pts · reuses PSO structure
+- [x] **ACO variants** (Ant Colony System, Max-Min AS, Elitist) — 5 pts · extend existing `aco.rs`
+- [x] **Genetic Algorithm (GA) for permutations/TSP** — 5 pts · order-crossover + mutation on tours
 
 ### **Multi-objective (new infrastructure) — total 18 pts**
-- [ ] **Pareto infrastructure** (non-dominated sorting, crowding distance, archive) — 8 pts · prerequisite
-- [ ] **NSGA-II** — 5 pts · builds on the Pareto infrastructure
-- [ ] **MOPSO** — 5 pts · multi-objective PSO on the same infrastructure
+- [x] **Pareto infrastructure** (non-dominated sorting, crowding distance, archive) — 8 pts · prerequisite
+- [x] **NSGA-II** — 5 pts · builds on the Pareto infrastructure
+- [x] **MOPSO** — 5 pts · multi-objective PSO on the same infrastructure
 
 ### **Notes on priority**
 - **Best value first:** DE, GWO (continuous) and 2-opt (discrete) — high impact, low points.

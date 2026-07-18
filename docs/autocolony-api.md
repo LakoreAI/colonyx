@@ -78,6 +78,7 @@ Continuous modes require `bounds=[(low, high), ...]`.
 - `mode="auto"` selects ACO for discrete square matrices.
 - `mode="auto"` selects PSO for continuous objectives by default.
 - The Rust extension performs the actual optimization work.
+- `AntColony` exposes `variant="basic" | "acs" | "elitist" | "mmas"` for ACO variants.
 
 ## Related objects
 
@@ -93,4 +94,8 @@ Continuous modes require `bounds=[(low, high), ...]`.
 - `colonyx._colonyx.BacterialForagingOptimizer`
 - `colonyx._colonyx.DifferentialEvolution`
 - `colonyx._colonyx.CmaEsOptimizer`
+- `colonyx._colonyx.BinaryParticleSwarm`
+- `colonyx._colonyx.PermutationGeneticOptimizer`
+- `colonyx._colonyx.Nsga2Optimizer`
+- `colonyx._colonyx.MopsoOptimizer`
 - `colonyx._colonyx.two_opt`

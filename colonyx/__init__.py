@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("colonyx")
 except PackageNotFoundError:  # pragma: no cover - local source checkout
-    __version__ = "0.1.1"
+    __version__ = "0.2.0"
 __author__ = "Minh, Le Duc"
 __email__ = "minh.leduc.0210@gmail.com"
 
