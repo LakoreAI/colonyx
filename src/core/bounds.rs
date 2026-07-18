@@ -13,10 +13,7 @@ impl Bounds {
 
         for (i, (&l, &u)) in lower.iter().zip(upper.iter()).enumerate() {
             if l > u {
-                return Err(format!(
-                    "Lower bound {} > upper bound {} at index {}",
-                    l, u, i
-                ));
+                return Err(format!("Lower bound {} > upper bound {} at index {}", l, u, i));
             }
         }
 
@@ -29,10 +26,7 @@ impl Bounds {
             return Err("Lower bound must be <= upper bound".to_string());
         }
 
-        Ok(Self {
-            lower: vec![lower; dimensions],
-            upper: vec![upper; dimensions],
-        })
+        Ok(Self { lower: vec![lower; dimensions], upper: vec![upper; dimensions] })
     }
 
     /// Check if a solution is within bounds
@@ -66,20 +60,12 @@ impl Bounds {
 
     /// Get the range (upper - lower) for each dimension
     pub fn ranges(&self) -> Vec<f64> {
-        self.upper
-            .iter()
-            .zip(self.lower.iter())
-            .map(|(u, l)| u - l)
-            .collect()
+        self.upper.iter().zip(self.lower.iter()).map(|(u, l)| u - l).collect()
     }
 
     /// Get the midpoint of bounds
     pub fn midpoint(&self) -> Vec<f64> {
-        self.upper
-            .iter()
-            .zip(self.lower.iter())
-            .map(|(u, l)| (u + l) / 2.0)
-            .collect()
+        self.upper.iter().zip(self.lower.iter()).map(|(u, l)| (u + l) / 2.0).collect()
     }
 }
 

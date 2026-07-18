@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/colonyx-logo.svg" alt="Colonyx Logo" width="200" height="200">
+</p>
+
 # colonyx
 
 **colonyx** is a Python library for solving optimization problems using swarm intelligence algorithms like Ant Colony Optimization (ACO), Particle Swarm Optimization (PSO), Artificial Bee Colony (ABC), Grey Wolf Optimization (GWO), Firefly (FA), Simulated Annealing (SA), Cuckoo Search (CS), Bat Algorithm (BA), Glowworm Swarm Optimization (GSO), Bacterial Foraging (BFO), and Differential Evolution (DE).

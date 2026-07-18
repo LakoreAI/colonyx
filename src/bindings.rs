@@ -8,14 +8,14 @@ use std::collections::HashMap;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+use crate::algorithms::aco::AcoVariant;
+use crate::algorithms::advanced::BinaryParticleSwarm;
 use crate::algorithms::{
     two_opt, AntColony, BacterialForagingOptimizer, BatAlgorithm, BeeColony, CmaEsOptimizer,
     CuckooSearch, DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer,
     MopsoOptimizer, Nsga2Optimizer, Optimizer, ParticleSwarm, PermutationGeneticOptimizer,
     SimulatedAnnealing,
 };
-use crate::algorithms::advanced::BinaryParticleSwarm;
-use crate::algorithms::aco::AcoVariant;
 use crate::core::{Bounds, ContinuousProblem, DiscreteProblem};
 
 /// Build `Bounds` from Python lower/upper lists, surfacing errors as `ValueError`.
@@ -154,14 +154,9 @@ impl PyAntColony {
             }
         }
 
-        let problem = DiscreteProblem {
-            name: "tsp".to_string(),
-            distance_matrix,
-        };
+        let problem = DiscreteProblem { name: "tsp".to_string(), distance_matrix };
 
-        self.inner
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        self.inner.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = self.inner.predict() {
             self.best_tour = Some(solution.variables.iter().map(|&x| x as usize).collect());
@@ -186,8 +181,7 @@ impl PyAntColony {
 
     /// Return the length of the best tour found.
     fn score(&self) -> PyResult<f64> {
-        self.best_length
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_length.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     /// Return the algorithm's hyperparameters.
@@ -273,11 +267,8 @@ impl PyParticleSwarm {
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
 
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut pso = ParticleSwarm::new(
             self.n_particles,
@@ -288,18 +279,14 @@ impl PyParticleSwarm {
             bounds,
         );
         pso.set_random_seed(self.random_state);
-        pso.fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        pso.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = pso.predict() {
             self.best_position = Some(solution.variables);
             self.best_score = solution.fitness;
             self.history_ = self.best_score.into_iter().collect();
-            self.population_ = self
-                .best_position
-                .clone()
-                .map(|position| vec![position])
-                .unwrap_or_default();
+            self.population_ =
+                self.best_position.clone().map(|position| vec![position]).unwrap_or_default();
         }
 
         Ok(())
@@ -314,8 +301,7 @@ impl PyParticleSwarm {
 
     /// Return the objective value at the best position.
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -388,26 +374,19 @@ impl PyBeeColony {
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
 
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut abc = BeeColony::new(self.n_bees, self.n_iterations, self.limit, bounds);
         abc.set_random_seed(self.random_state);
-        abc.fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        abc.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = abc.predict() {
             self.best_position = Some(solution.variables);
             self.best_score = solution.fitness;
             self.history_ = self.best_score.into_iter().collect();
-            self.population_ = self
-                .best_position
-                .clone()
-                .map(|position| vec![position])
-                .unwrap_or_default();
+            self.population_ =
+                self.best_position.clone().map(|position| vec![position]).unwrap_or_default();
         }
 
         Ok(())
@@ -422,8 +401,7 @@ impl PyBeeColony {
 
     /// Return the objective value at the best position.
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -483,17 +461,12 @@ impl PyGreyWolfOptimizer {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = GreyWolfOptimizer::new(self.n_wolves, self.n_iterations, bounds);
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -511,8 +484,7 @@ impl PyGreyWolfOptimizer {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -584,11 +556,8 @@ impl PyFireflyOptimizer {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = FireflyOptimizer::new(
             self.n_fireflies,
@@ -599,9 +568,7 @@ impl PyFireflyOptimizer {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -619,8 +586,7 @@ impl PyFireflyOptimizer {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -691,11 +657,8 @@ impl PySimulatedAnnealing {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = SimulatedAnnealing::new(
             self.initial_temperature,
@@ -705,9 +668,7 @@ impl PySimulatedAnnealing {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -725,8 +686,7 @@ impl PySimulatedAnnealing {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -800,11 +760,8 @@ impl PyCuckooSearch {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = CuckooSearch::new(
             self.n_nests,
@@ -815,9 +772,7 @@ impl PyCuckooSearch {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -835,8 +790,7 @@ impl PyCuckooSearch {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -923,11 +877,8 @@ impl PyBatAlgorithm {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = BatAlgorithm::new(
             self.n_bats,
@@ -941,9 +892,7 @@ impl PyBatAlgorithm {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -961,8 +910,7 @@ impl PyBatAlgorithm {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1044,11 +992,8 @@ impl PyGlowwormOptimizer {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = GlowwormOptimizer::new(
             self.n_worms,
@@ -1060,9 +1005,7 @@ impl PyGlowwormOptimizer {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1080,8 +1023,7 @@ impl PyGlowwormOptimizer {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1089,10 +1031,7 @@ impl PyGlowwormOptimizer {
         params.insert("n_worms".to_string(), self.n_worms as f64);
         params.insert("n_iterations".to_string(), self.n_iterations as f64);
         params.insert("luciferin_decay".to_string(), self.luciferin_decay);
-        params.insert(
-            "luciferin_enhancement".to_string(),
-            self.luciferin_enhancement,
-        );
+        params.insert("luciferin_enhancement".to_string(), self.luciferin_enhancement);
         params.insert("step_size".to_string(), self.step_size);
         params.insert("neighborhood_radius".to_string(), self.neighborhood_radius);
         params
@@ -1164,11 +1103,8 @@ impl PyBacterialForagingOptimizer {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = BacterialForagingOptimizer::new(
             self.n_bacteria,
@@ -1180,9 +1116,7 @@ impl PyBacterialForagingOptimizer {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1200,26 +1134,16 @@ impl PyBacterialForagingOptimizer {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
         let mut params = HashMap::new();
         params.insert("n_bacteria".to_string(), self.n_bacteria as f64);
         params.insert("n_iterations".to_string(), self.n_iterations as f64);
-        params.insert(
-            "n_chemotactic_steps".to_string(),
-            self.n_chemotactic_steps as f64,
-        );
-        params.insert(
-            "n_reproduction_steps".to_string(),
-            self.n_reproduction_steps as f64,
-        );
-        params.insert(
-            "elimination_probability".to_string(),
-            self.elimination_probability,
-        );
+        params.insert("n_chemotactic_steps".to_string(), self.n_chemotactic_steps as f64);
+        params.insert("n_reproduction_steps".to_string(), self.n_reproduction_steps as f64);
+        params.insert("elimination_probability".to_string(), self.elimination_probability);
         params.insert("step_scale".to_string(), self.step_scale);
         params
     }
@@ -1282,11 +1206,8 @@ impl PyDifferentialEvolution {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer = DifferentialEvolution::new(
             self.n_individuals,
@@ -1296,9 +1217,7 @@ impl PyDifferentialEvolution {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1316,8 +1235,7 @@ impl PyDifferentialEvolution {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1383,18 +1301,13 @@ impl PyCmaEsOptimizer {
         let bounds = build_bounds(lower, upper)?;
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &bounds.midpoint())?;
-        let problem = ContinuousProblem {
-            name: "objective".to_string(),
-            dimensions,
-            objective_function,
-        };
+        let problem =
+            ContinuousProblem { name: "objective".to_string(), dimensions, objective_function };
 
         let mut optimizer =
             CmaEsOptimizer::new(self.n_individuals, self.n_iterations, self.sigma, bounds);
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1412,8 +1325,7 @@ impl PyCmaEsOptimizer {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1503,17 +1415,12 @@ impl PyBinaryParticleSwarm {
         let dimensions = bounds.lower.len();
         let objective_function = make_objective(py, objective, &vec![0.0; dimensions])?;
 
-        let mut optimizer = BinaryParticleSwarm::new(
-            self.n_particles,
-            self.n_iterations,
-            self.w,
-            self.c1,
-            self.c2,
-        );
+        let mut optimizer =
+            BinaryParticleSwarm::new(self.n_particles, self.n_iterations, self.w, self.c1, self.c2);
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit_with_objective(&objective_function, dimensions)
-            .map_err(|e: crate::algorithms::base::OptimizationError| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit_with_objective(&objective_function, dimensions).map_err(
+            |e: crate::algorithms::base::OptimizationError| PyValueError::new_err(e.to_string()),
+        )?;
 
         if let Some(solution) = optimizer.best_solution {
             self.best_position = Some(solution.variables);
@@ -1531,8 +1438,7 @@ impl PyBinaryParticleSwarm {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_score
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_score.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1592,10 +1498,7 @@ impl PyPermutationGeneticOptimizer {
             }
         }
 
-        let problem = DiscreteProblem {
-            name: "tsp".to_string(),
-            distance_matrix,
-        };
+        let problem = DiscreteProblem { name: "tsp".to_string(), distance_matrix };
 
         let mut optimizer = PermutationGeneticOptimizer::new(
             self.n_individuals,
@@ -1604,9 +1507,7 @@ impl PyPermutationGeneticOptimizer {
             self.use_two_opt,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer
-            .fit(&problem)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_tour = Some(solution.variables.iter().map(|value| *value as usize).collect());
@@ -1624,8 +1525,7 @@ impl PyPermutationGeneticOptimizer {
     }
 
     fn score(&self) -> PyResult<f64> {
-        self.best_length
-            .ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
+        self.best_length.ok_or_else(|| PyValueError::new_err("must call fit() before score()"))
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1714,16 +1614,10 @@ impl PyNsga2Optimizer {
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         self.population_ = optimizer.population;
-        self.best_front = optimizer
-            .best_front
-            .iter()
-            .map(|point| point.variables.clone())
-            .collect();
-        self.best_objectives = optimizer
-            .best_front
-            .iter()
-            .map(|point| point.objectives.clone())
-            .collect();
+        self.best_front =
+            optimizer.best_front.iter().map(|point| point.variables.clone()).collect();
+        self.best_objectives =
+            optimizer.best_front.iter().map(|point| point.objectives.clone()).collect();
         Ok(())
     }
 
@@ -1847,16 +1741,9 @@ impl PyMopsoOptimizer {
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         self.population_ = optimizer.population;
-        self.best_front = optimizer
-            .archive
-            .iter()
-            .map(|point| point.variables.clone())
-            .collect();
-        self.best_objectives = optimizer
-            .archive
-            .iter()
-            .map(|point| point.objectives.clone())
-            .collect();
+        self.best_front = optimizer.archive.iter().map(|point| point.variables.clone()).collect();
+        self.best_objectives =
+            optimizer.archive.iter().map(|point| point.objectives.clone()).collect();
         Ok(())
     }
 

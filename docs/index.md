@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="colonyx-logo.svg" alt="Colonyx Logo" width="200" height="200">
+</p>
+
 # colonyx
 
 `colonyx` is a Python optimization library with a Rust core.

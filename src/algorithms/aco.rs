@@ -153,7 +153,9 @@ impl AntColony {
         if self.variant == AcoVariant::Acs && rng.gen::<f64>() < self.q0 {
             return candidates
                 .iter()
-                .max_by(|left, right| left.1.partial_cmp(&right.1).unwrap_or(std::cmp::Ordering::Equal))
+                .max_by(|left, right| {
+                    left.1.partial_cmp(&right.1).unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .map(|candidate| candidate.0)
                 .unwrap_or(candidates[0].0);
         }
@@ -351,15 +353,25 @@ mod tests {
                 };
             }
         }
-        DiscreteProblem {
-            name: "ring".to_string(),
-            distance_matrix: matrix,
-        }
+        DiscreteProblem { name: "ring".to_string(), distance_matrix: matrix }
     }
 
     #[test]
     fn constructs_valid_permutation() {
-        let mut aco = AntColony::new(10, 20, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
+        let mut aco = AntColony::new(
+            10,
+            20,
+            1.0,
+            2.0,
+            0.5,
+            1.0,
+            true,
+            AcoVariant::Basic,
+            0.9,
+            2.0,
+            1e-4,
+            10.0,
+        );
         aco.set_random_seed(Some(1));
         aco.fit(&ring_problem(6)).unwrap();
 
@@ -371,7 +383,8 @@ mod tests {
 
     #[test]
     fn evaporation_scales_pheromone_by_one_minus_rho() {
-        let mut aco = AntColony::new(5, 1, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
+        let mut aco =
+            AntColony::new(5, 1, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
         aco.initialize_pheromone_matrix(4);
         let before = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
@@ -385,7 +398,8 @@ mod tests {
 
     #[test]
     fn deposit_adds_symmetric_pheromone_on_used_edges() {
-        let mut aco = AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0); // rho=0 => no evaporation
+        let mut aco =
+            AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0); // rho=0 => no evaporation
         aco.initialize_pheromone_matrix(3);
         let base = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
@@ -404,7 +418,20 @@ mod tests {
         // beta = 0 disables the distance heuristic, so reaching the optimum
         // proves the pheromone deposit/evaporation loop is doing the learning.
         let n = 8;
-        let mut aco = AntColony::new(20, 100, 1.0, 0.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
+        let mut aco = AntColony::new(
+            20,
+            100,
+            1.0,
+            0.0,
+            0.5,
+            1.0,
+            true,
+            AcoVariant::Basic,
+            0.9,
+            2.0,
+            1e-4,
+            10.0,
+        );
         aco.set_random_seed(Some(42));
         aco.fit(&ring_problem(n)).unwrap();
 
@@ -413,11 +440,21 @@ mod tests {
 
     #[test]
     fn rejects_empty_problem() {
-        let mut aco = AntColony::new(5, 10, 1.0, 2.0, 0.5, 1.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
-        let empty = DiscreteProblem {
-            name: "empty".to_string(),
-            distance_matrix: vec![],
-        };
+        let mut aco = AntColony::new(
+            5,
+            10,
+            1.0,
+            2.0,
+            0.5,
+            1.0,
+            true,
+            AcoVariant::Basic,
+            0.9,
+            2.0,
+            1e-4,
+            10.0,
+        );
+        let empty = DiscreteProblem { name: "empty".to_string(), distance_matrix: vec![] };
         assert!(aco.fit(&empty).is_err());
     }
 }

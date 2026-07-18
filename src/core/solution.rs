@@ -49,11 +49,7 @@ pub struct SolutionSet {
 
 impl SolutionSet {
     pub fn new(solutions: Vec<Solution>) -> Self {
-        Self {
-            solutions,
-            best_index: None,
-            generation: 0,
-        }
+        Self { solutions, best_index: None, generation: 0 }
     }
 
     pub fn find_best(&mut self) -> Option<&Solution> {

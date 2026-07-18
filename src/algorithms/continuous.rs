@@ -161,9 +161,8 @@ impl Optimizer for GreyWolfOptimizer {
                 "n_wolves must be at least 3 for grey wolf optimization".to_string(),
             ));
         }
-        let mut wolves: Vec<Vec<f64>> = (0..self.n_wolves)
-            .map(|_| random_position(&self.bounds, &ranges, &mut rng))
-            .collect();
+        let mut wolves: Vec<Vec<f64>> =
+            (0..self.n_wolves).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
         let mut scores: Vec<f64> = wolves.iter().map(|wolf| problem.evaluate(wolf)).collect();
 
         let best_index = scores
@@ -177,7 +176,9 @@ impl Optimizer for GreyWolfOptimizer {
 
         for iteration in 0..self.n_iterations {
             let mut ranking: Vec<usize> = (0..self.n_wolves).collect();
-            ranking.sort_by(|left, right| scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal));
+            ranking.sort_by(|left, right| {
+                scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal)
+            });
             let alpha = wolves[ranking[0]].clone();
             let beta = wolves[ranking[1]].clone();
             let delta = wolves[ranking[2]].clone();
@@ -237,9 +238,7 @@ impl Optimizer for GreyWolfOptimizer {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -308,10 +307,8 @@ impl Optimizer for FireflyOptimizer {
         let mut fireflies: Vec<Vec<f64>> = (0..self.n_fireflies)
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
-        let mut scores: Vec<f64> = fireflies
-            .iter()
-            .map(|firefly| problem.evaluate(firefly))
-            .collect();
+        let mut scores: Vec<f64> =
+            fireflies.iter().map(|firefly| problem.evaluate(firefly)).collect();
 
         let best_index = scores
             .iter()
@@ -372,9 +369,7 @@ impl Optimizer for FireflyOptimizer {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -482,9 +477,7 @@ impl Optimizer for SimulatedAnnealing {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -552,9 +545,8 @@ impl Optimizer for CuckooSearch {
                 "n_nests must be at least 2 for cuckoo search".to_string(),
             ));
         }
-        let mut nests: Vec<Vec<f64>> = (0..self.n_nests)
-            .map(|_| random_position(&self.bounds, &ranges, &mut rng))
-            .collect();
+        let mut nests: Vec<Vec<f64>> =
+            (0..self.n_nests).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
         let mut scores: Vec<f64> = nests.iter().map(|nest| problem.evaluate(nest)).collect();
 
         let best_index = scores
@@ -591,8 +583,9 @@ impl Optimizer for CuckooSearch {
             let abandon_count = (self.pa * self.n_nests as f64).ceil() as usize;
             let abandon_count = abandon_count.max(1).min(self.n_nests);
             let mut worst_indices: Vec<usize> = (0..self.n_nests).collect();
-            worst_indices
-                .sort_by(|left, right| scores[*right].partial_cmp(&scores[*left]).unwrap_or(std::cmp::Ordering::Equal));
+            worst_indices.sort_by(|left, right| {
+                scores[*right].partial_cmp(&scores[*left]).unwrap_or(std::cmp::Ordering::Equal)
+            });
             for nest_index in worst_indices.into_iter().take(abandon_count) {
                 nests[nest_index] = random_position(&self.bounds, &ranges, &mut rng);
                 scores[nest_index] = problem.evaluate(&nests[nest_index]);
@@ -622,9 +615,7 @@ impl Optimizer for CuckooSearch {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -702,15 +693,12 @@ impl Optimizer for BatAlgorithm {
                 "n_bats must be at least 2 for bat algorithm".to_string(),
             ));
         }
-        let mut positions: Vec<Vec<f64>> = (0..self.n_bats)
-            .map(|_| random_position(&self.bounds, &ranges, &mut rng))
-            .collect();
+        let mut positions: Vec<Vec<f64>> =
+            (0..self.n_bats).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
         let mut velocities = vec![vec![0.0; dimension]; self.n_bats];
         let mut frequencies = vec![0.0; self.n_bats];
-        let mut scores: Vec<f64> = positions
-            .iter()
-            .map(|position| problem.evaluate(position))
-            .collect();
+        let mut scores: Vec<f64> =
+            positions.iter().map(|position| problem.evaluate(position)).collect();
         let mut loudness = vec![self.loudness; self.n_bats];
         let mut pulse = vec![self.pulse_rate; self.n_bats];
 
@@ -773,9 +761,7 @@ impl Optimizer for BatAlgorithm {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -850,9 +836,8 @@ impl Optimizer for GlowwormOptimizer {
                 "n_worms must be at least 2 for glowworm optimization".to_string(),
             ));
         }
-        let mut worms: Vec<Vec<f64>> = (0..self.n_worms)
-            .map(|_| random_position(&self.bounds, &ranges, &mut rng))
-            .collect();
+        let mut worms: Vec<Vec<f64>> =
+            (0..self.n_worms).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
         let mut luciferin = vec![1.0; self.n_worms];
         let mut scores: Vec<f64> = worms.iter().map(|worm| problem.evaluate(worm)).collect();
 
@@ -888,7 +873,11 @@ impl Optimizer for GlowwormOptimizer {
                     let target_index = neighbors
                         .iter()
                         .copied()
-                        .min_by(|left, right| scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal))
+                        .min_by(|left, right| {
+                            scores[*left]
+                                .partial_cmp(&scores[*right])
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        })
                         .unwrap();
                     let mut candidate = worms[worm_index].clone();
                     for dimension_index in 0..dimension {
@@ -927,9 +916,7 @@ impl Optimizer for GlowwormOptimizer {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -937,10 +924,7 @@ impl Optimizer for GlowwormOptimizer {
         params.insert("n_worms".to_string(), self.n_worms as f64);
         params.insert("n_iterations".to_string(), self.n_iterations as f64);
         params.insert("luciferin_decay".to_string(), self.luciferin_decay);
-        params.insert(
-            "luciferin_enhancement".to_string(),
-            self.luciferin_enhancement,
-        );
+        params.insert("luciferin_enhancement".to_string(), self.luciferin_enhancement);
         params.insert("step_size".to_string(), self.step_size);
         params.insert("neighborhood_radius".to_string(), self.neighborhood_radius);
         params
@@ -1008,10 +992,8 @@ impl Optimizer for BacterialForagingOptimizer {
         let mut bacteria: Vec<Vec<f64>> = (0..self.n_bacteria)
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
-        let mut scores: Vec<f64> = bacteria
-            .iter()
-            .map(|bacterium| problem.evaluate(bacterium))
-            .collect();
+        let mut scores: Vec<f64> =
+            bacteria.iter().map(|bacterium| problem.evaluate(bacterium)).collect();
 
         let best_index = scores
             .iter()
@@ -1052,7 +1034,9 @@ impl Optimizer for BacterialForagingOptimizer {
             }
 
             let mut order: Vec<usize> = (0..self.n_bacteria).collect();
-            order.sort_by(|left, right| scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal));
+            order.sort_by(|left, right| {
+                scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal)
+            });
             let survivors = (self.n_bacteria / 2).max(1);
             let surviving_indices = &order[..survivors];
             let mut replicated_bacteria = Vec::with_capacity(self.n_bacteria);
@@ -1093,27 +1077,16 @@ impl Optimizer for BacterialForagingOptimizer {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
         let mut params = HashMap::new();
         params.insert("n_bacteria".to_string(), self.n_bacteria as f64);
         params.insert("n_iterations".to_string(), self.n_iterations as f64);
-        params.insert(
-            "n_chemotactic_steps".to_string(),
-            self.n_chemotactic_steps as f64,
-        );
-        params.insert(
-            "n_reproduction_steps".to_string(),
-            self.n_reproduction_steps as f64,
-        );
-        params.insert(
-            "elimination_probability".to_string(),
-            self.elimination_probability,
-        );
+        params.insert("n_chemotactic_steps".to_string(), self.n_chemotactic_steps as f64);
+        params.insert("n_reproduction_steps".to_string(), self.n_reproduction_steps as f64);
+        params.insert("elimination_probability".to_string(), self.elimination_probability);
         params.insert("step_scale".to_string(), self.step_scale);
         params
     }
@@ -1168,10 +1141,8 @@ impl Optimizer for DifferentialEvolution {
         let mut population: Vec<Vec<f64>> = (0..self.n_individuals)
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
-        let mut scores: Vec<f64> = population
-            .iter()
-            .map(|individual| problem.evaluate(individual))
-            .collect();
+        let mut scores: Vec<f64> =
+            population.iter().map(|individual| problem.evaluate(individual)).collect();
 
         let best_index = scores
             .iter()
@@ -1184,9 +1155,8 @@ impl Optimizer for DifferentialEvolution {
 
         for _ in 0..self.n_iterations {
             for target_index in 0..self.n_individuals {
-                let pool: Vec<usize> = (0..self.n_individuals)
-                    .filter(|&index| index != target_index)
-                    .collect();
+                let pool: Vec<usize> =
+                    (0..self.n_individuals).filter(|&index| index != target_index).collect();
                 let mut selected = Vec::new();
                 while selected.len() < 3 {
                     let candidate = pool[rng.gen_range(0..pool.len())];
@@ -1245,9 +1215,7 @@ impl Optimizer for DifferentialEvolution {
     }
 
     fn score(&self) -> Option<f64> {
-        self.best_solution
-            .as_ref()
-            .and_then(|solution| solution.fitness)
+        self.best_solution.as_ref().and_then(|solution| solution.fitness)
     }
 
     fn get_params(&self) -> HashMap<String, f64> {
@@ -1341,7 +1309,9 @@ impl Optimizer for CmaEsOptimizer {
             }
 
             let mut ranking: Vec<usize> = (0..self.n_individuals).collect();
-            ranking.sort_by(|left, right| scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal));
+            ranking.sort_by(|left, right| {
+                scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             let mut new_mean = vec![0.0; dimension];
             for (rank, &index) in ranking.iter().take(mu).enumerate() {

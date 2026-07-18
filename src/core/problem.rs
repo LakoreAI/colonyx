@@ -101,11 +101,7 @@ mod tests {
     fn discrete_problem_evaluates_tour_length() {
         let problem = DiscreteProblem {
             name: "toy".to_string(),
-            distance_matrix: vec![
-                vec![0.0, 1.0, 2.0],
-                vec![1.0, 0.0, 3.0],
-                vec![2.0, 3.0, 0.0],
-            ],
+            distance_matrix: vec![vec![0.0, 1.0, 2.0], vec![1.0, 0.0, 3.0], vec![2.0, 3.0, 0.0]],
         };
         assert_eq!(problem.evaluate(&[0.0, 1.0, 2.0]), 6.0);
         assert!(problem.is_discrete());

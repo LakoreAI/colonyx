@@ -103,11 +103,7 @@ pub fn crowding_distance(points: &[ParetoPoint], front: &[usize]) -> Vec<(usize,
         }
     }
 
-    front
-        .iter()
-        .enumerate()
-        .map(|(index, &candidate)| (candidate, distances[index]))
-        .collect()
+    front.iter().enumerate().map(|(index, &candidate)| (candidate, distances[index])).collect()
 }
 
 pub fn hypervolume_2d(points: &[ParetoPoint], reference: [f64; 2]) -> f64 {
@@ -121,7 +117,8 @@ pub fn hypervolume_2d(points: &[ParetoPoint], reference: [f64; 2]) -> f64 {
             }
         })
         .collect();
-    front.sort_by(|left, right| left[0].partial_cmp(&right[0]).unwrap_or(std::cmp::Ordering::Equal));
+    front
+        .sort_by(|left, right| left[0].partial_cmp(&right[0]).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut volume = 0.0;
     let mut best_y = reference[1];
@@ -248,7 +245,11 @@ impl Optimizer for PermutationGeneticOptimizer {
         let mut rng = make_rng(self.random_seed);
 
         let mut population: Vec<Solution> = (0..self.n_individuals)
-            .map(|_| Solution::new(random_permutation(&mut rng, n).into_iter().map(|city| city as f64).collect()))
+            .map(|_| {
+                Solution::new(
+                    random_permutation(&mut rng, n).into_iter().map(|city| city as f64).collect(),
+                )
+            })
             .collect();
 
         for solution in &mut population {
@@ -294,7 +295,8 @@ impl Optimizer for PermutationGeneticOptimizer {
                     &mut rng,
                 );
                 swap_mutation(&mut child_tour, &mut rng, self.mutation_rate);
-                let mut child = Solution::new(child_tour.into_iter().map(|city| city as f64).collect());
+                let mut child =
+                    Solution::new(child_tour.into_iter().map(|city| city as f64).collect());
                 let fitness = problem.evaluate(&child.variables);
                 child.set_fitness(fitness);
                 next_generation.push(child);
@@ -308,10 +310,7 @@ impl Optimizer for PermutationGeneticOptimizer {
                 .partial_cmp(&right.fitness.unwrap_or(f64::INFINITY))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        self.population = population
-            .iter()
-            .map(|solution| solution.variables.clone())
-            .collect();
+        self.population = population.iter().map(|solution| solution.variables.clone()).collect();
         self.best_solution = population.first().cloned();
         Ok(())
     }
@@ -381,11 +380,7 @@ impl BinaryParticleSwarm {
         let mut rng = make_rng(self.random_seed);
 
         let mut positions: Vec<Vec<u8>> = (0..self.n_particles)
-            .map(|_| {
-                (0..dimensions)
-                    .map(|_| if rng.gen::<f64>() < 0.5 { 1 } else { 0 })
-                    .collect()
-            })
+            .map(|_| (0..dimensions).map(|_| if rng.gen::<f64>() < 0.5 { 1 } else { 0 }).collect())
             .collect();
         let mut velocities = vec![vec![0.0; dimensions]; self.n_particles];
         let mut personal_best = positions.clone();
@@ -408,18 +403,23 @@ impl BinaryParticleSwarm {
                 for dimension in 0..dimensions {
                     let r1 = rng.gen::<f64>();
                     let r2 = rng.gen::<f64>();
-                    velocities[particle_index][dimension] = self.w * velocities[particle_index][dimension]
-                        + self.c1 * r1 * ((personal_best[particle_index][dimension] as f64) - (positions[particle_index][dimension] as f64))
-                        + self.c2 * r2 * ((global_best[dimension] as f64) - (positions[particle_index][dimension] as f64));
+                    velocities[particle_index][dimension] = self.w
+                        * velocities[particle_index][dimension]
+                        + self.c1
+                            * r1
+                            * ((personal_best[particle_index][dimension] as f64)
+                                - (positions[particle_index][dimension] as f64))
+                        + self.c2
+                            * r2
+                            * ((global_best[dimension] as f64)
+                                - (positions[particle_index][dimension] as f64));
                     let probability = sigmoid(velocities[particle_index][dimension]);
-                    positions[particle_index][dimension] = if rng.gen::<f64>() < probability {
-                        1
-                    } else {
-                        0
-                    };
+                    positions[particle_index][dimension] =
+                        if rng.gen::<f64>() < probability { 1 } else { 0 };
                 }
 
-                let candidate: Vec<f64> = positions[particle_index].iter().map(|value| *value as f64).collect();
+                let candidate: Vec<f64> =
+                    positions[particle_index].iter().map(|value| *value as f64).collect();
                 let score = objective(&candidate);
                 if score < personal_best_score[particle_index] {
                     personal_best_score[particle_index] = score;
@@ -493,10 +493,7 @@ fn archive_from_population(points: Vec<ParetoPoint>, archive_size: usize) -> Vec
             let distances = crowding_distance(&points, &front);
             let mut ranked = distances;
             ranked.sort_by(|left, right| {
-                right
-                    .1
-                    .partial_cmp(&left.1)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                right.1.partial_cmp(&left.1).unwrap_or(std::cmp::Ordering::Equal)
             });
             for (index, _) in ranked {
                 if archive.len() >= archive_size {
@@ -519,15 +516,9 @@ fn select_archive_leader(rng: &mut StdRng, archive: &[ParetoPoint]) -> Vec<f64> 
     let candidates = if first_front.is_empty() {
         archive.iter().map(|point| point.variables.clone()).collect::<Vec<_>>()
     } else {
-        first_front
-            .iter()
-            .map(|index| archive[*index].variables.clone())
-            .collect::<Vec<_>>()
+        first_front.iter().map(|index| archive[*index].variables.clone()).collect::<Vec<_>>()
     };
-    candidates
-        .choose(rng)
-        .cloned()
-        .unwrap_or_else(|| archive[0].variables.clone())
+    candidates.choose(rng).cloned().unwrap_or_else(|| archive[0].variables.clone())
 }
 
 #[derive(Debug)]
@@ -583,7 +574,8 @@ impl Nsga2Optimizer {
         }
         let mut rng = make_rng(self.random_seed);
 
-        let mut variables = initialize_continuous_population(&mut rng, &self.bounds, self.n_individuals);
+        let mut variables =
+            initialize_continuous_population(&mut rng, &self.bounds, self.n_individuals);
         let mut evaluated = evaluate_multi_objective(objective, &variables);
 
         for _ in 0..self.n_iterations {
@@ -604,7 +596,11 @@ impl Nsga2Optimizer {
                 let right = rng.gen_range(0..ranks.len());
                 let left_better = ranks[left] < ranks[right]
                     || (ranks[left] == ranks[right] && crowding[left] > crowding[right]);
-                if left_better { left } else { right }
+                if left_better {
+                    left
+                } else {
+                    right
+                }
             };
 
             let mut offspring = Vec::with_capacity(self.n_individuals);
@@ -645,10 +641,7 @@ impl Nsga2Optimizer {
                     let distances = crowding_distance(&combined, &front);
                     let mut ranked = distances;
                     ranked.sort_by(|left, right| {
-                        right
-                            .1
-                            .partial_cmp(&left.1)
-                            .unwrap_or(std::cmp::Ordering::Equal)
+                        right.1.partial_cmp(&left.1).unwrap_or(std::cmp::Ordering::Equal)
                     });
                     for (index, _) in ranked {
                         if next_population.len() >= self.n_individuals {
@@ -726,7 +719,8 @@ impl MopsoOptimizer {
         }
         let mut rng = make_rng(self.random_seed);
 
-        let mut positions = initialize_continuous_population(&mut rng, &self.bounds, self.n_particles);
+        let mut positions =
+            initialize_continuous_population(&mut rng, &self.bounds, self.n_particles);
         let mut velocities = vec![vec![0.0; dim]; self.n_particles];
         let mut personal_best = positions.clone();
         let mut personal_best_eval = evaluate_multi_objective(objective, &personal_best);
@@ -746,13 +740,10 @@ impl MopsoOptimizer {
                 clamp_candidate(&mut positions[i], &self.bounds);
 
                 let current = objective(&positions[i]);
-                if dominates(&current, &personal_best_eval[i].objectives)
-                {
+                if dominates(&current, &personal_best_eval[i].objectives) {
                     personal_best[i] = positions[i].clone();
-                    personal_best_eval[i] = ParetoPoint {
-                        variables: positions[i].clone(),
-                        objectives: current,
-                    };
+                    personal_best_eval[i] =
+                        ParetoPoint { variables: positions[i].clone(), objectives: current };
                 }
             }
 
@@ -833,10 +824,14 @@ mod tests {
         let mut bpso = BinaryParticleSwarm::new(20, 50, 0.7, 1.5, 1.5);
         bpso.set_random_seed(Some(42));
         // onemax: maximize sum -> minimize (dim - sum)
-        bpso.fit_with_objective(&|x: &[f64]| {
-            let sum: f64 = x.iter().sum();
-            x.len() as f64 - sum
-        }, 5).unwrap();
+        bpso.fit_with_objective(
+            &|x: &[f64]| {
+                let sum: f64 = x.iter().sum();
+                x.len() as f64 - sum
+            },
+            5,
+        )
+        .unwrap();
         let vars = bpso.best_solution.unwrap().variables;
         // all elements should be close to 1 (maximized sum)
         let sum: f64 = vars.iter().sum();

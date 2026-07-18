@@ -23,14 +23,7 @@ pub struct BeeColony {
 
 impl BeeColony {
     pub fn new(n_bees: usize, n_iterations: usize, limit: usize, bounds: Bounds) -> Self {
-        Self {
-            n_bees,
-            n_iterations,
-            limit,
-            bounds,
-            random_seed: None,
-            best_solution: None,
-        }
+        Self { n_bees, n_iterations, limit, bounds, random_seed: None, best_solution: None }
     }
 
     /// Set the RNG seed for reproducible runs. `None` draws from entropy.
@@ -63,7 +56,9 @@ impl BeeColony {
         if sn == 1 {
             // Single source: random walk instead of differential mutation.
             let j = rng.gen_range(0..dim);
-            let step = (rng.gen::<f64>() * 2.0 - 1.0) * (self.bounds.upper[j] - self.bounds.lower[j]) * 0.1;
+            let step = (rng.gen::<f64>() * 2.0 - 1.0)
+                * (self.bounds.upper[j] - self.bounds.lower[j])
+                * 0.1;
             candidate[j] = sources[i][j] + step;
         } else {
             // Partner source k != i.
@@ -123,9 +118,8 @@ impl Optimizer for BeeColony {
         let ranges = self.bounds.ranges();
 
         // Initialize food sources.
-        let mut sources: Vec<Vec<f64>> = (0..sn)
-            .map(|_| self.random_source(&ranges, &mut rng))
-            .collect();
+        let mut sources: Vec<Vec<f64>> =
+            (0..sn).map(|_| self.random_source(&ranges, &mut rng)).collect();
         let mut objective: Vec<f64> = sources.iter().map(|s| problem.evaluate(s)).collect();
         let mut trials = vec![0usize; sn];
 
