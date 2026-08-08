@@ -1048,9 +1048,7 @@ impl Optimizer for BacterialForagingOptimizer {
 
                 let mut order: Vec<usize> = (0..self.n_bacteria).collect();
                 order.sort_by(|left, right| {
-                    scores[*left]
-                        .partial_cmp(&scores[*right])
-                        .unwrap_or(std::cmp::Ordering::Equal)
+                    scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal)
                 });
                 let survivors = (self.n_bacteria / 2).max(1);
                 let surviving_indices = &order[..survivors];
@@ -1307,7 +1305,8 @@ impl Optimizer for CmaEsOptimizer {
         let dim_f = dimension as f64;
         let mu_eff = 1.0 / weights.iter().map(|w| w * w).sum::<f64>();
         let c_sigma = (mu_eff + 2.0) / (dim_f + mu_eff + 5.0);
-        let d_sigma = 1.0 + c_sigma + 2.0 * (0.0_f64).max(((mu_eff - 1.0) / (dim_f + 1.0)).sqrt() - 1.0);
+        let d_sigma =
+            1.0 + c_sigma + 2.0 * (0.0_f64).max(((mu_eff - 1.0) / (dim_f + 1.0)).sqrt() - 1.0);
         let sqrt_term = (c_sigma * (2.0 - c_sigma) * mu_eff).sqrt();
         let chi_n = dim_f.sqrt() * (1.0 - 1.0 / (4.0 * dim_f) + 1.0 / (21.0 * dim_f * dim_f));
         let mut p_sigma = vec![0.0_f64; dimension];
@@ -1360,9 +1359,8 @@ impl Optimizer for CmaEsOptimizer {
                     (1.0 - c_sigma) * p_sigma[dimension_index] + sqrt_term * step;
             }
             let p_sigma_norm = (p_sigma.iter().map(|v| v * v).sum::<f64>()).sqrt();
-            self.sigma = (self.sigma
-                * ((c_sigma / d_sigma) * (p_sigma_norm / chi_n - 1.0)).exp())
-            .max(1e-6);
+            self.sigma =
+                (self.sigma * ((c_sigma / d_sigma) * (p_sigma_norm / chi_n - 1.0)).exp()).max(1e-6);
 
             let mut new_covariance = vec![0.0; dimension];
             for (rank, &index) in ranking.iter().take(mu).enumerate() {

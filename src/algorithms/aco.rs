@@ -444,20 +444,8 @@ mod tests {
         // Same setup as the ACS test above, but Basic should behave as
         // before: every ant's tour deposits pheromone even without a
         // recorded best_solution.
-        let mut aco = AntColony::new(
-            1,
-            1,
-            1.0,
-            2.0,
-            0.0,
-            2.0,
-            true,
-            AcoVariant::Basic,
-            0.9,
-            2.0,
-            1e-4,
-            10.0,
-        );
+        let mut aco =
+            AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true, AcoVariant::Basic, 0.9, 2.0, 1e-4, 10.0);
         aco.initialize_pheromone_matrix(3);
         let base = aco.pheromone_matrix.as_ref().unwrap()[0][1];
 
