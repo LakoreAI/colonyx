@@ -25,7 +25,7 @@ class ObjectiveFunctionError(TypeError, OptimizationError):
     """Raised when an objective function is invalid."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Interval:
     """Numeric interval constraint."""
 
@@ -53,7 +53,7 @@ class Interval:
                 raise ValueError(f"{name} must be < {self.upper}")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class StrOptions:
     """Enumerated string constraint."""
 

@@ -1,6 +1,7 @@
 """Tests for metric and statistical helpers."""
 
 import numpy as np
+import pytest
 
 from colonyx import (
     AutoColony,
@@ -10,10 +11,12 @@ from colonyx import (
     distribution_analysis,
     optimization_gap,
     paired_significance_test,
+    profile_callable,
     profile_optimization_run,
     robustness_analysis,
     success_rate,
 )
+from colonyx import metrics as metrics_module
 
 
 def test_scalar_metrics_are_computed():
@@ -59,6 +62,30 @@ def test_autocolony_reports_metrics_for_multiple_runs():
     assert "success_rate" in performance
     assert "mean" in summary
     assert "robustness" in report
+
+
+def test_paired_significance_test_requires_scipy(monkeypatch):
+    # Regression test: without scipy this used to silently return a
+    # fabricated pvalue=1.0 instead of a real one, misrepresenting an
+    # untested statistic as "not significant". It must now fail loudly.
+    monkeypatch.setattr(metrics_module, "scipy_stats", None)
+    with pytest.raises(ImportError):
+        paired_significance_test([1.0, 2.0, 3.0], [1.1, 1.9, 3.2])
+
+
+def test_profile_callable_is_a_generic_profiler():
+    # Regression test: profile_callable used to read __profile_*
+    # attributes off an arbitrary callable that nothing ever set, silently
+    # returning garbage NaN/0 placeholders dressed up as real metrics.
+    result, profile = profile_callable(lambda: sum(range(1000)))
+
+    assert result == sum(range(1000))
+    assert profile.elapsed_seconds >= 0.0
+    assert profile.peak_memory_kib >= 0.0
+    assert np.isnan(profile.best_score)
+    assert profile.score_history_length == 0
+    assert profile.improvement_rate == 0.0
+    assert profile.efficiency == 0.0
 
 
 def test_profile_optimization_run_captures_timing_and_memory():

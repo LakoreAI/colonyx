@@ -174,8 +174,13 @@ impl AntColony {
         candidates.last().unwrap().0
     }
 
-    /// Apply one Ant System pheromone update: evaporate every edge by `rho`,
-    /// then deposit `q / tour_length` on the edges each ant traversed.
+    /// Apply one pheromone update: evaporate every edge by `rho`, then deposit.
+    ///
+    /// Basic/Elitist/MMAS use the Ant System rule: every ant deposits
+    /// `q / tour_length` on the edges it traversed. Ant Colony System deposits
+    /// only via the best-so-far ant (the block below), since in real ACS the
+    /// per-ant contribution instead happens as a *local* update during
+    /// construction, which this implementation does not model.
     ///
     /// Deposits are symmetric (`i->j` and `j->i`) since tours are undirected.
     fn update_pheromones(&mut self, solutions: &[Solution]) {
@@ -196,20 +201,23 @@ impl AntColony {
         }
 
         // Deposit, proportional to tour quality (shorter tour => more pheromone).
-        for solution in solutions {
-            let length = match solution.fitness {
-                Some(length) if length > 0.0 => length,
-                _ => continue,
-            };
-            let deposit = q / length;
+        // ACS deposits only via the best-so-far ant below, not every ant.
+        if self.variant != AcoVariant::Acs {
+            for solution in solutions {
+                let length = match solution.fitness {
+                    Some(length) if length > 0.0 => length,
+                    _ => continue,
+                };
+                let deposit = q / length;
 
-            let tour = &solution.variables;
-            let m = tour.len();
-            for idx in 0..m {
-                let from = tour[idx] as usize;
-                let to = tour[(idx + 1) % m] as usize;
-                pheromone[from][to] += deposit;
-                pheromone[to][from] += deposit;
+                let tour = &solution.variables;
+                let m = tour.len();
+                for idx in 0..m {
+                    let from = tour[idx] as usize;
+                    let to = tour[(idx + 1) % m] as usize;
+                    pheromone[from][to] += deposit;
+                    pheromone[to][from] += deposit;
+                }
             }
         }
 
@@ -411,6 +419,53 @@ mod tests {
         assert!((pheromone[0][1] - (base + 0.5)).abs() < 1e-12);
         assert!((pheromone[1][0] - (base + 0.5)).abs() < 1e-12); // symmetric
         assert!((pheromone[1][2] - (base + 0.5)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn acs_variant_skips_uniform_all_ant_deposit() {
+        // rho=0 => no evaporation. With no best_solution recorded yet, ACS
+        // should leave pheromone untouched: it deposits only via the
+        // best-so-far ant, unlike Basic/Elitist/MMAS which deposit from
+        // every ant's tour on every iteration.
+        let mut aco =
+            AntColony::new(1, 1, 1.0, 2.0, 0.0, 2.0, true, AcoVariant::Acs, 0.9, 2.0, 1e-4, 10.0);
+        aco.initialize_pheromone_matrix(3);
+        let base = aco.pheromone_matrix.as_ref().unwrap()[0][1];
+
+        let solution = Solution::with_fitness(vec![0.0, 1.0, 2.0], 4.0);
+        aco.update_pheromones(std::slice::from_ref(&solution));
+
+        let pheromone = aco.pheromone_matrix.as_ref().unwrap();
+        assert!((pheromone[0][1] - base).abs() < 1e-12);
+    }
+
+    #[test]
+    fn basic_variant_still_deposits_from_every_ant() {
+        // Same setup as the ACS test above, but Basic should behave as
+        // before: every ant's tour deposits pheromone even without a
+        // recorded best_solution.
+        let mut aco = AntColony::new(
+            1,
+            1,
+            1.0,
+            2.0,
+            0.0,
+            2.0,
+            true,
+            AcoVariant::Basic,
+            0.9,
+            2.0,
+            1e-4,
+            10.0,
+        );
+        aco.initialize_pheromone_matrix(3);
+        let base = aco.pheromone_matrix.as_ref().unwrap()[0][1];
+
+        let solution = Solution::with_fitness(vec![0.0, 1.0, 2.0], 4.0);
+        aco.update_pheromones(std::slice::from_ref(&solution));
+
+        let pheromone = aco.pheromone_matrix.as_ref().unwrap();
+        assert!(pheromone[0][1] > base);
     }
 
     #[test]

@@ -30,12 +30,12 @@
 ## Lint & Typecheck
 
 - `ruff` (lint+format, line-length=100, select E/F/I/B, ignore E501)
-- `mypy` (python_version=3.8, ignore_missing_imports)
+- `mypy` (python_version=3.9, ignore_missing_imports)
 - Pre-commit hooks: ruff (lint + format) + mypy
 
 ## Key Constraints
 
-- Python 3.8+, numpy>=1.21, scikit-learn>=1.0
+- Python 3.9+, numpy>=1.21, scikit-learn>=1.6 (the `__sklearn_tags__`/`InputTags` API in `base.py` requires sklearn ≥1.6, which itself requires Python ≥3.9 — keep these two constraints in lockstep)
 - Rust edition 2021, pyo3 0.25.0, rand 0.8
 - Version in `Cargo.toml` is source of truth (currently 0.1.1)
 - `.env` contains publish tokens — do not commit

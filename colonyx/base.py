@@ -34,7 +34,7 @@ class OptimizerMixin:
         return bool(getattr(self, "_fitted", False))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class BaseProblem(ABC):
     """Common metadata shared by optimization problem descriptors."""
 
@@ -50,7 +50,7 @@ class BaseProblem(ABC):
         """Evaluate a candidate solution."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ContinuousProblem(BaseProblem):
     """Descriptor for a continuous minimization problem."""
 
@@ -72,7 +72,7 @@ class ContinuousProblem(BaseProblem):
         return float(self.objective(candidate))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class DiscreteProblem(BaseProblem):
     """Descriptor for a discrete graph/TSP-style problem."""
 

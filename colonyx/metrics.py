@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import tracemalloc
+import warnings
 from dataclasses import dataclass
 from time import perf_counter
-import tracemalloc
-from math import sqrt
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -46,7 +46,15 @@ class BenchmarkResult:
 
 
 def profile_callable(func, *args, **kwargs) -> tuple[object, ProfilingResult]:
-    """Measure wall-clock and peak-memory cost of a callable."""
+    """Measure wall-clock and peak-memory cost of an arbitrary callable.
+
+    This is a generic profiler: it has no way to know whether ``func`` is an
+    optimizer, so the optimization-specific fields on the returned
+    ``ProfilingResult`` (``best_score``, ``score_history_length``,
+    ``improvement_rate``, ``efficiency``) are always ``nan``/``0`` here. Use
+    ``profile_optimization_run(optimizer, ...)`` instead to profile an
+    optimizer and get those fields populated from its actual fit history.
+    """
     tracemalloc.start()
     start_time = perf_counter()
     try:
@@ -59,10 +67,10 @@ def profile_callable(func, *args, **kwargs) -> tuple[object, ProfilingResult]:
     return result, ProfilingResult(
         elapsed_seconds=float(elapsed_seconds),
         peak_memory_kib=float(peak_memory / 1024.0),
-        best_score=float(getattr(func, "__profile_best_score__", np.nan)),
-        score_history_length=int(getattr(func, "__profile_history_length__", 0)),
-        improvement_rate=float(getattr(func, "__profile_improvement_rate__", 0.0)),
-        efficiency=float(getattr(func, "__profile_efficiency__", 0.0)),
+        best_score=float("nan"),
+        score_history_length=0,
+        improvement_rate=0.0,
+        efficiency=0.0,
     )
 
 
@@ -176,21 +184,37 @@ def benchmark_optimizers(
     repeats: int = 3,
     callback: Callable[[str, int, BenchmarkResult | None], None] | None = None,
     early_stopping_rounds: int | None = None,
+    on_error: Callable[[str, BaseException], None] | None = None,
     **fit_kwargs,
 ) -> dict[str, BenchmarkResult]:
-    """Benchmark several optimizers and return per-optimizer summaries."""
-    return {
-        name: benchmark_optimizer(
-            name,
-            factory,
-            *fit_args,
-            repeats=repeats,
-            callback=callback,
-            early_stopping_rounds=early_stopping_rounds,
-            **fit_kwargs,
-        )
-        for name, factory in optimizer_factories.items()
-    }
+    """Benchmark several optimizers and return per-optimizer summaries.
+
+    A factory/run that raises is skipped rather than aborting the whole
+    batch: the failure is reported to ``on_error`` (if given) and always as a
+    ``RuntimeWarning``, and that name is simply absent from the returned
+    dict.
+    """
+    results: dict[str, BenchmarkResult] = {}
+    for name, factory in optimizer_factories.items():
+        try:
+            results[name] = benchmark_optimizer(
+                name,
+                factory,
+                *fit_args,
+                repeats=repeats,
+                callback=callback,
+                early_stopping_rounds=early_stopping_rounds,
+                **fit_kwargs,
+            )
+        except Exception as exc:
+            warnings.warn(
+                f"benchmark_optimizers: {name!r} failed and was skipped: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            if on_error is not None:
+                on_error(name, exc)
+    return results
 
 
 def benchmark_report(results: Mapping[str, BenchmarkResult]) -> dict[str, dict[str, float]]:
@@ -319,23 +343,26 @@ def robustness_analysis(scores: Sequence[float]) -> dict[str, float]:
 
 
 def paired_significance_test(scores_a: Sequence[float], scores_b: Sequence[float]) -> dict[str, float]:
-    """Run a paired significance test between two sets of scores."""
+    """Run a paired t-test between two sets of scores.
+
+    Requires scipy: computing a real p-value from the t-distribution needs
+    its CDF, and silently returning a fabricated ``pvalue=1.0`` (as this used
+    to do without scipy) would misrepresent an untested statistic as "not
+    significant" regardless of the actual data.
+    """
     values_a = np.asarray(scores_a, dtype=float)
     values_b = np.asarray(scores_b, dtype=float)
     if values_a.size != values_b.size or values_a.size == 0:
         raise ValueError("scores_a and scores_b must be non-empty and have the same length")
 
-    if scipy_stats is not None:
-        statistic, pvalue = scipy_stats.ttest_rel(values_a, values_b)
-        return {"statistic": float(statistic), "pvalue": float(pvalue)}
+    if scipy_stats is None:
+        raise ImportError(
+            "paired_significance_test requires scipy (for the t-distribution "
+            "CDF used to compute pvalue); install it with `pip install scipy`"
+        )
 
-    differences = values_a - values_b
-    mean_diff = float(np.mean(differences))
-    std_diff = float(np.std(differences, ddof=1))
-    if std_diff == 0.0:
-        return {"statistic": 0.0, "pvalue": 1.0}
-    statistic = mean_diff / (std_diff / sqrt(values_a.size))
-    return {"statistic": float(statistic), "pvalue": 1.0}
+    statistic, pvalue = scipy_stats.ttest_rel(values_a, values_b)
+    return {"statistic": float(statistic), "pvalue": float(pvalue)}
 
 
 def aggregate_runs(scores: Sequence[float], optimum: float = 0.0, success_threshold: float = 0.0) -> dict[str, float]:

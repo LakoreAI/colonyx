@@ -35,6 +35,13 @@ fn standard_normal(rng: &mut StdRng) -> f64 {
     (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos()
 }
 
+/// Canonical Bat Algorithm pulse-rate schedule (Yang): `r_i(t) = r_i(0) * (1 -
+/// exp(-gamma*t))`, computed fresh from the initial rate each time rather than
+/// compounded onto the previous value.
+fn bat_pulse_rate(initial_rate: f64, gamma: f64, t: f64) -> f64 {
+    initial_rate * (1.0 - (-gamma * t).exp())
+}
+
 fn validate_and_init(
     bounds: &Bounds,
     problem: &dyn Problem,
@@ -700,6 +707,7 @@ impl Optimizer for BatAlgorithm {
         let mut scores: Vec<f64> =
             positions.iter().map(|position| problem.evaluate(position)).collect();
         let mut loudness = vec![self.loudness; self.n_bats];
+        let initial_pulse_rate = self.pulse_rate;
         let mut pulse = vec![self.pulse_rate; self.n_bats];
 
         let best_index = scores
@@ -740,7 +748,8 @@ impl Optimizer for BatAlgorithm {
                 if candidate_score <= scores[bat_index] && rng.gen::<f64>() < loudness[bat_index] {
                     scores[bat_index] = candidate_score;
                     loudness[bat_index] *= self.alpha;
-                    pulse[bat_index] *= 1.0 - (-self.gamma * (iteration as f64 + 1.0)).exp();
+                    pulse[bat_index] =
+                        bat_pulse_rate(initial_pulse_rate, self.gamma, iteration as f64 + 1.0);
                     if candidate_score < best_score {
                         best_score = candidate_score;
                         best_position = positions[bat_index].clone();
@@ -1004,54 +1013,63 @@ impl Optimizer for BacterialForagingOptimizer {
         let mut best_position = bacteria[best_index].clone();
         let mut best_score = scores[best_index];
 
-        for _reproduction_round in 0..self.n_iterations {
-            for _ in 0..self.n_chemotactic_steps {
-                for bacterium_index in 0..self.n_bacteria {
-                    let current = bacteria[bacterium_index].clone();
-                    let mut candidate = current.clone();
-                    for dimension_index in 0..dimension {
-                        let step = (rng.gen::<f64>() * 2.0 - 1.0)
-                            * self.step_scale
-                            * ranges[dimension_index];
-                        candidate[dimension_index] = clamp_value(
-                            candidate[dimension_index] + step,
-                            self.bounds.lower[dimension_index],
-                            self.bounds.upper[dimension_index],
-                        );
-                    }
+        // Canonical BFO nests three loops: elimination-dispersal (outermost,
+        // `n_iterations` events), reproduction (`n_reproduction_steps` events),
+        // and chemotaxis (`n_chemotactic_steps` swim/tumble events, innermost).
+        for _elimination_round in 0..self.n_iterations {
+            for _reproduction_round in 0..self.n_reproduction_steps {
+                for _ in 0..self.n_chemotactic_steps {
+                    for bacterium_index in 0..self.n_bacteria {
+                        let current = bacteria[bacterium_index].clone();
+                        let mut candidate = current.clone();
+                        for dimension_index in 0..dimension {
+                            let step = (rng.gen::<f64>() * 2.0 - 1.0)
+                                * self.step_scale
+                                * ranges[dimension_index];
+                            candidate[dimension_index] = clamp_value(
+                                candidate[dimension_index] + step,
+                                self.bounds.lower[dimension_index],
+                                self.bounds.upper[dimension_index],
+                            );
+                        }
 
-                    let candidate_score = problem.evaluate(&candidate);
-                    if candidate_score < scores[bacterium_index] {
-                        bacteria[bacterium_index] = candidate;
-                        scores[bacterium_index] = candidate_score;
-                    }
+                        let candidate_score = problem.evaluate(&candidate);
+                        if candidate_score < scores[bacterium_index] {
+                            bacteria[bacterium_index] = candidate;
+                            scores[bacterium_index] = candidate_score;
+                        }
 
-                    if scores[bacterium_index] < best_score {
-                        best_score = scores[bacterium_index];
-                        best_position = bacteria[bacterium_index].clone();
+                        if scores[bacterium_index] < best_score {
+                            best_score = scores[bacterium_index];
+                            best_position = bacteria[bacterium_index].clone();
+                        }
                     }
                 }
-            }
 
-            let mut order: Vec<usize> = (0..self.n_bacteria).collect();
-            order.sort_by(|left, right| {
-                scores[*left].partial_cmp(&scores[*right]).unwrap_or(std::cmp::Ordering::Equal)
-            });
-            let survivors = (self.n_bacteria / 2).max(1);
-            let surviving_indices = &order[..survivors];
-            let mut replicated_bacteria = Vec::with_capacity(self.n_bacteria);
-            let mut replicated_scores = Vec::with_capacity(self.n_bacteria);
-            while replicated_bacteria.len() < self.n_bacteria {
-                for &index in surviving_indices {
-                    replicated_bacteria.push(bacteria[index].clone());
-                    replicated_scores.push(scores[index]);
-                    if replicated_bacteria.len() >= self.n_bacteria {
-                        break;
+                let mut order: Vec<usize> = (0..self.n_bacteria).collect();
+                order.sort_by(|left, right| {
+                    scores[*left]
+                        .partial_cmp(&scores[*right])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                let survivors = (self.n_bacteria / 2).max(1);
+                let surviving_indices = &order[..survivors];
+                let mut replicated_bacteria = Vec::with_capacity(self.n_bacteria);
+                let mut replicated_scores = Vec::with_capacity(self.n_bacteria);
+                while replicated_bacteria.len() < self.n_bacteria {
+                    for &index in surviving_indices {
+                        replicated_bacteria.push(bacteria[index].clone());
+                        replicated_scores.push(scores[index]);
+                        if replicated_bacteria.len() >= self.n_bacteria {
+                            break;
+                        }
                     }
                 }
+                bacteria = replicated_bacteria;
+                scores = replicated_scores;
+
+                self.history.push(best_score);
             }
-            bacteria = replicated_bacteria;
-            scores = replicated_scores;
 
             for bacterium_index in 0..self.n_bacteria {
                 if rng.gen::<f64>() < self.elimination_probability {
@@ -1063,8 +1081,6 @@ impl Optimizer for BacterialForagingOptimizer {
                     }
                 }
             }
-
-            self.history.push(best_score);
         }
 
         self.population = bacteria;
@@ -1228,6 +1244,10 @@ impl Optimizer for DifferentialEvolution {
     }
 }
 
+/// Separable (diagonal-covariance) CMA-ES: each axis keeps its own variance
+/// rather than a full covariance matrix, so it cannot model axis rotation.
+/// The step size `sigma`, however, follows real cumulative step-size
+/// adaptation (CSA) via an evolution path, not a fixed decay schedule.
 #[derive(Debug)]
 pub struct CmaEsOptimizer {
     pub n_individuals: usize,
@@ -1281,6 +1301,17 @@ impl Optimizer for CmaEsOptimizer {
         let weight_sum: f64 = raw_weights.iter().sum::<f64>().max(1e-12);
         let weights: Vec<f64> = raw_weights.iter().map(|weight| weight / weight_sum).collect();
 
+        // Cumulative step-size adaptation (CSA), following Hansen's CMA-ES
+        // tutorial, specialised to a diagonal (separable) covariance: the
+        // C^{-1/2} transform reduces to dividing each axis by sqrt(c_ii).
+        let dim_f = dimension as f64;
+        let mu_eff = 1.0 / weights.iter().map(|w| w * w).sum::<f64>();
+        let c_sigma = (mu_eff + 2.0) / (dim_f + mu_eff + 5.0);
+        let d_sigma = 1.0 + c_sigma + 2.0 * (0.0_f64).max(((mu_eff - 1.0) / (dim_f + 1.0)).sqrt() - 1.0);
+        let sqrt_term = (c_sigma * (2.0 - c_sigma) * mu_eff).sqrt();
+        let chi_n = dim_f.sqrt() * (1.0 - 1.0 / (4.0 * dim_f) + 1.0 / (21.0 * dim_f * dim_f));
+        let mut p_sigma = vec![0.0_f64; dimension];
+
         let mut best_position = mean.clone();
         let mut best_score = problem.evaluate(&best_position);
 
@@ -1320,6 +1351,19 @@ impl Optimizer for CmaEsOptimizer {
                 }
             }
 
+            // Update the evolution path and step size using the *old* (pre-update)
+            // covariance, then adapt sigma before the covariance itself changes.
+            for dimension_index in 0..dimension {
+                let step = (new_mean[dimension_index] - mean[dimension_index])
+                    / (self.sigma * covariance[dimension_index].sqrt().max(1e-12));
+                p_sigma[dimension_index] =
+                    (1.0 - c_sigma) * p_sigma[dimension_index] + sqrt_term * step;
+            }
+            let p_sigma_norm = (p_sigma.iter().map(|v| v * v).sum::<f64>()).sqrt();
+            self.sigma = (self.sigma
+                * ((c_sigma / d_sigma) * (p_sigma_norm / chi_n - 1.0)).exp())
+            .max(1e-6);
+
             let mut new_covariance = vec![0.0; dimension];
             for (rank, &index) in ranking.iter().take(mu).enumerate() {
                 for dimension_index in 0..dimension {
@@ -1336,7 +1380,6 @@ impl Optimizer for CmaEsOptimizer {
             }
 
             mean = new_mean;
-            self.sigma = (self.sigma * 0.99).max(1e-6);
             self.population = population;
             self.history.push(best_score);
         }
@@ -1570,6 +1613,21 @@ mod tests {
         assert!(ba.fit(&sphere(2)).is_err());
     }
 
+    #[test]
+    fn bat_pulse_rate_matches_canonical_formula_and_does_not_compound() {
+        // r_i(t) = r_i(0) * (1 - exp(-gamma*t)); recomputed from r_i(0) each
+        // time, so calling it repeatedly at the same t is idempotent (the old
+        // buggy version instead multiplied onto the previous pulse value).
+        let r0 = 0.5;
+        let gamma = 0.9;
+        let expected_t2 = r0 * (1.0 - (-gamma * 2.0_f64).exp());
+        assert!((bat_pulse_rate(r0, gamma, 2.0) - expected_t2).abs() < 1e-12);
+        assert_eq!(bat_pulse_rate(r0, gamma, 2.0), bat_pulse_rate(r0, gamma, 2.0));
+        // Pulse rate rises monotonically toward r_i(0), never exceeding it.
+        assert!(bat_pulse_rate(r0, gamma, 1.0) < bat_pulse_rate(r0, gamma, 5.0));
+        assert!(bat_pulse_rate(r0, gamma, 100.0) <= r0);
+    }
+
     // --- GlowwormOptimizer ---
 
     #[test]
@@ -1648,6 +1706,19 @@ mod tests {
         assert!(bfo.fit(&sphere(2)).is_err());
     }
 
+    #[test]
+    fn bfo_n_reproduction_steps_is_not_ignored() {
+        // History is recorded once per reproduction round, nested inside the
+        // elimination-dispersal loop: n_iterations * n_reproduction_steps
+        // entries. Before the fix, n_reproduction_steps had zero effect and
+        // history length was always just n_iterations (3).
+        let bounds = Bounds::uniform(2, -5.0, 5.0).unwrap();
+        let mut bfo = BacterialForagingOptimizer::new(6, 3, 4, 5, 0.0, 0.1, bounds);
+        bfo.set_random_seed(Some(1));
+        bfo.fit(&sphere(2)).unwrap();
+        assert_eq!(bfo.history.len(), 3 * 5);
+    }
+
     // --- DifferentialEvolution ---
 
     #[test]
@@ -1724,5 +1795,23 @@ mod tests {
         let bounds = Bounds::uniform(3, -1.0, 1.0).unwrap();
         let mut cmaes = CmaEsOptimizer::new(10, 10, 0.5, bounds);
         assert!(cmaes.fit(&sphere(2)).is_err());
+    }
+
+    #[test]
+    fn cmaes_sigma_uses_step_size_adaptation_not_fixed_decay() {
+        let bounds = Bounds::uniform(2, -5.0, 5.0).unwrap();
+        let initial_sigma = 0.5;
+        let n_iterations = 30;
+        let mut cmaes = CmaEsOptimizer::new(10, n_iterations, initial_sigma, bounds);
+        cmaes.set_random_seed(Some(3));
+        cmaes.fit(&sphere(2)).unwrap();
+
+        let fixed_decay_sigma = initial_sigma * 0.99_f64.powi(n_iterations as i32);
+        assert!(
+            (cmaes.sigma - fixed_decay_sigma).abs() > 1e-3,
+            "sigma ({}) should follow CSA, not the old fixed 0.99 decay ({})",
+            cmaes.sigma,
+            fixed_decay_sigma
+        );
     }
 }

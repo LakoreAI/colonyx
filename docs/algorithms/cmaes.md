@@ -1,6 +1,9 @@
 # CMA-ES
 
-`CmaEsOptimizer` is a diagonal covariance adaptation strategy for continuous optimization.
+`CmaEsOptimizer` is a separable (diagonal-covariance) CMA-ES: each axis adapts
+its own variance rather than a full covariance matrix, so it cannot model
+axis rotation. The step size (`sigma`) follows real cumulative step-size
+adaptation (CSA) via an evolution path, the same mechanism full CMA-ES uses.
 
 ## Use when
 

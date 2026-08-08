@@ -59,7 +59,7 @@ def schwefel(x: object) -> float:
     return float(418.9829 * vector.size - np.sum(vector * np.sin(np.sqrt(np.abs(vector)))))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class BenchmarkProblem:
     """Descriptor for a named benchmark objective."""
 

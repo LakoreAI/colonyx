@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "colonyx"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 description = "A Pythonic toolkit for Ant Colony, Particle Swarm, and Bee Colony optimization — written in Rust for high performance, designed for real-world use."
 readme = "README.md"
 license = { text = "MIT" }
@@ -17,7 +17,6 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -28,7 +27,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     "numpy>=1.21",
-    "scikit-learn>=1.0",
+    "scikit-learn>=1.6",
 ]
 keywords = ["optimization", "swarm", "rust", "pyo3", "sklearn"]
 

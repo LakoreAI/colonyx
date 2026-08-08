@@ -196,15 +196,6 @@ class AutoColony(BaseOptimizer, TransformerMixin):
     def __sklearn_is_fitted__(self):
         return getattr(self, "_fitted", False)
 
-    def _detect_problem_type(self, X, y=None):
-        """Auto-detect problem type for algorithm selection."""
-        problem = check_optimization_problem(X, y)
-        if problem["problem_type"] == "discrete":
-            return "aco"
-        if problem["problem_type"] == "tabular":
-            return "sklearn"
-        return "pso"
-
     def _infer_problem_dimension(self, X, bounds=None):
         """Infer dimensionality for heuristic algorithm selection."""
         if bounds is not None:
@@ -826,6 +817,7 @@ class AutoColony(BaseOptimizer, TransformerMixin):
         self._compatibility_mode = True
         self._best_solution = best_row.tolist()
         self._best_score = float(targets[best_index])
+        self._compat_fit_targets = targets
         self.score_history_ = [self._best_score]
         self.population_ = features.tolist()
         self.best_solution_ = self._best_solution
@@ -934,7 +926,8 @@ class AutoColony(BaseOptimizer, TransformerMixin):
 
         For optimization modes this returns the objective value directly.
         For sklearn-style compatibility mode it returns a negative MSE so the
-        estimator behaves like a standard sklearn scorer.
+        estimator behaves like a standard sklearn scorer (higher is better),
+        defaulting to the targets seen during ``fit()`` when ``y`` is omitted.
         """
         self._check_is_fitted()
 
@@ -942,7 +935,9 @@ class AutoColony(BaseOptimizer, TransformerMixin):
             return self._best_score
 
         if y is None:
-            return -self._best_score
+            y = getattr(self, "_compat_fit_targets", None)
+            if y is None:
+                return 0.0
 
         if X is not None:
             validate_data(self, X, reset=False, ensure_2d=True, dtype=None)
@@ -967,8 +962,6 @@ class AutoColony(BaseOptimizer, TransformerMixin):
         self._check_is_fitted()
         population = getattr(self, "population_", None)
         if population is None:
-            if self._compatibility_mode and self._best_solution is not None:
-                return 0.0
             return 0.0
 
         population_array = np.asarray(population, dtype=float)

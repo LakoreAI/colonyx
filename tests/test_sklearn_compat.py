@@ -27,6 +27,22 @@ def test_pickle_roundtrip_preserves_optimization_state():
     assert restored.score() == optimizer.score()
 
 
+def test_compatibility_mode_score_defaults_to_negative_mse_against_fit_targets():
+    # Regression test: score() with no arguments used to return -best_score,
+    # an arbitrary sign flip of a raw target value with no real meaning.
+    # It should now default to -MSE against the targets seen during fit(),
+    # matching the semantics used when y is explicitly passed in.
+    rng = np.random.default_rng(5)
+    features = rng.normal(size=(20, 3))
+    targets = rng.normal(size=20)
+
+    optimizer = AutoColony(mode="pso", n_iterations=5, random_state=1)
+    optimizer.fit(features, targets)
+
+    assert optimizer.score() == optimizer.score(y=targets)
+    assert optimizer.score() <= 0.0
+
+
 def test_pipeline_with_sklearn_compatibility_mode():
     rng = np.random.default_rng(7)
     features = rng.normal(size=(40, 4))
