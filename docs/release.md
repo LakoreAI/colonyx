@@ -60,7 +60,7 @@ Rust consumers can depend on the crate directly and use the modules under
 
 ```toml
 [dependencies]
-colonyx = "0.1.1"
+colonyx = "0.3"
 ```
 
 See `docs/rust.md` for examples.

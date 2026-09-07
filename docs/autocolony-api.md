@@ -34,7 +34,13 @@ AutoColony(
 | `n_worms`, `luciferin_decay`, `luciferin_enhancement`, `gso_step_size`, `neighborhood_radius` | `gso` | Glowworm luciferin dynamics |
 | `n_bacteria`, `n_chemotactic_steps`, `n_reproduction_steps`, `elimination_probability`, `bfo_step_scale` | `bfo` | Bacterial foraging schedule |
 | `n_individuals`, `f`, `cr` | `de` | Mutation factor and crossover rate |
-| `n_individuals`, `sigma` | `cmaes` | Diagonal covariance adaptation and step scale |
+| `n_individuals`, `cmaes_sigma` | `cmaes` | Diagonal covariance adaptation and step scale |
+
+!!! note "Source of truth"
+    All algorithm-specific parameter names, defaults, and their mapping to
+    the underlying Rust constructor keywords live in one place:
+    `_ALGORITHM_PARAM_SPECS` in `colonyx/auto.py`. If a parameter isn't
+    listed above, check that dict — it's authoritative.
 
 ### Algorithm-specific arguments
 
@@ -49,7 +55,7 @@ AutoColony(
 - `n_worms`, `luciferin_decay`, `luciferin_enhancement`, `gso_step_size`, `neighborhood_radius`
 - `n_bacteria`, `n_chemotactic_steps`, `n_reproduction_steps`, `elimination_probability`, `bfo_step_scale`
 - `n_individuals`, `f`, `cr`
-- `n_individuals`, `sigma`
+- `n_individuals`, `cmaes_sigma`
 
 ## Fit contract
 
@@ -79,6 +85,27 @@ Continuous modes require `bounds=[(low, high), ...]`.
 - `mode="auto"` selects PSO for continuous objectives by default.
 - The Rust extension performs the actual optimization work.
 - `AntColony` exposes `variant="basic" | "acs" | "elitist" | "mmas"` for ACO variants.
+
+## Introspection & metrics
+
+- `recommend_algorithm(X, y=None, bounds=None)` — the same heuristic
+  `mode="auto"` uses, returned as a dict with `mode`, `reason`, and
+  `problem_type` so you can inspect *why* a backend was picked.
+- `suggest_parameters(X, y=None, bounds=None)` — reasonable starting
+  parameters for the recommended (or explicitly set) mode, sized from the
+  problem's dimensionality.
+- `parameter_mapping(algorithm_mode=None)` / `parameter_help(algorithm_mode=None)`
+  — the frontend-parameter-to-backend-keyword mapping and a one-line summary
+  for a given mode.
+- `resolve_parameter_conflicts(algorithm_mode)` — the active parameters for
+  that mode, and records which of the *other* algorithms' parameters you
+  passed but that don't apply, in `parameter_conflicts_`.
+- After `fit()`: `optimization_metrics()` and `performance_metrics(optimum=0.0, success_threshold=0.0)`
+  bundle `score()` with convergence rate, diversity, and robustness (see
+  [Benchmarking & Metrics](benchmarking.md)).
+- `AutoColony.default_param_grids()` / `default_param_distributions()` —
+  ready-made `GridSearchCV`/`RandomizedSearchCV` search spaces, one entry per
+  mode.
 
 ## Related objects
 

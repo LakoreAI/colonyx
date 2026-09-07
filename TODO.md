@@ -378,3 +378,41 @@ incremental steps so each step leaves the project in a strictly better state.
   chemotactic step on top of that would multiply history length by
   `n_chemotactic_steps` for no clear benefit — a granularity/design choice,
   not a bug.
+- [x] **`docs/QA.md`'s NSGA-II/MOPSO `score()` returns `0.0` for
+  single-objective claim** — verified and fixed. `PyNsga2Optimizer::score()`
+  and `PyMopsoOptimizer::score()` (`bindings.rs`) both silently returned a
+  fabricated `0.0` when `fit()` had been called with an objective returning
+  fewer than 2 values, since `hypervolume_2d` is undefined for <2 objectives.
+  No existing test exercised that branch. Changed both to raise a
+  `ValueError` explaining that `score()` needs a 2-objective hypervolume,
+  matching this project's established "raise rather than fabricate a number"
+  pattern (see `paired_significance_test`'s scipy-required `ImportError` in
+  `metrics.py`). Added `test_nsga2_score_raises_for_a_single_objective_function`
+  and its MOPSO counterpart to `tests/test_advanced_algorithms.py`.
+
+## Step 12 — Fix `MopsoOptimizer`'s Dead `mutation_scale` Parameter
+
+> Found while documenting `docs/algorithms/mopso.md` with a definition,
+> pseudocode, and verified example (2026-09). Verified directly against
+> `src/algorithms/advanced.rs`, not yet fixed — recorded here rather than
+> silently changing behavior mid-documentation-pass.
+
+- [ ] **`MopsoOptimizer::mutation_scale` is stored but never read** —
+  `Nsga2Optimizer` uses its own `mutation_scale` field (with `mutation_rate`
+  gating how often it applies) inside its offspring-generation loop, but
+  `MopsoOptimizer::fit_with_objective()` has no mutation step at all: its
+  main loop only does the velocity/position update, dominance-based
+  personal-best replacement, and archive maintenance. `mutation_scale` is
+  accepted by the constructor and stored on the struct, but no code path
+  ever reads `self.mutation_scale`. Setting it currently has zero effect on
+  search behavior. The canonical Coello Coello & Lechuga MOPSO does include
+  a mutation operator (applied to a fraction of particles, often decreasing
+  over iterations), so this is a real gap versus the literature algorithm,
+  not just a cosmetic dead field. Documented as a `!!! note` on
+  `docs/algorithms/mopso.md` rather than fixed here, since implementing it
+  requires a design decision this pass didn't make: whether to gate mutation
+  by an added probability field (mirroring NSGA-II's `mutation_rate`, a
+  breaking constructor change) or apply it unconditionally as a small
+  per-dimension jitter (a behavior change with no new parameter, but not
+  obviously what "canonical" MOPSO mutation means either). Left for a
+  dedicated pass with its own tests rather than guessed at here.

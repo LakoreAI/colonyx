@@ -1,35 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" aria-labelledby="title desc" role="img">
   <title id="title">Colonyx Logo</title>
-  <desc id="desc">Minimalist swarm of geometric dots converging to a central point — symbolizing collective intelligence</desc>
-  
-  <!-- Central core -->
-  <circle cx="100" cy="100" r="11" fill="#0EA5E9" stroke="#111827" stroke-width="3"/>
-  
-  <!-- Swarm dots in converging formation -->
-  <!-- Layer 1: closer ring/orbit -->
-  <circle cx="72" cy="78" r="5" fill="#22D3EE"/>
-  <circle cx="128" cy="75" r="5" fill="#22D3EE"/>
-  <circle cx="65" cy="115" r="5" fill="#22D3EE"/>
-  <circle cx="135" cy="122" r="5" fill="#22D3EE"/>
-  
-  <!-- Layer 2: mid swarm -->
-  <circle cx="48" cy="55" r="4.5" fill="#67E8F9"/>
-  <circle cx="85" cy="42" r="4.5" fill="#67E8F9"/>
-  <circle cx="150" cy="48" r="4.5" fill="#67E8F9"/>
-  <circle cx="155" cy="92" r="4.5" fill="#67E8F9"/>
-  <circle cx="45" cy="138" r="4.5" fill="#67E8F9"/>
-  <circle cx="112" cy="155" r="4.5" fill="#67E8F9"/>
-  
-  <!-- Layer 3: outer agents -->
-  <circle cx="32" cy="72" r="4" fill="#BAE6FD"/>
-  <circle cx="168" cy="65" r="4" fill="#BAE6FD"/>
-  <circle cx="38" cy="125" r="4" fill="#BAE6FD"/>
-  <circle cx="162" cy="135" r="4" fill="#BAE6FD"/>
-  <circle cx="78" cy="28" r="4" fill="#BAE6FD"/>
-  <circle cx="125" cy="28" r="4" fill="#BAE6FD"/>
-  
-  <!-- Very subtle directional connection lines (optional minimal guidance) -->
-  <line x1="72" y1="78" x2="100" y2="100" stroke="#111827" stroke-width="1.5" stroke-opacity="0.25"/>
-  <line x1="128" y1="75" x2="100" y2="100" stroke="#111827" stroke-width="1.5" stroke-opacity="0.25"/>
-  <line x1="65" y1="115" x2="100" y2="100" stroke="#111827" stroke-width="1.5" stroke-opacity="0.25"/>
+  <desc id="desc">A honeycomb of six colony cells surrounding a bright central cell — the colony's agents converging on the solution they found together</desc>
+
+  <defs>
+    <radialGradient id="core" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#A5F3FC"/>
+      <stop offset="55%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </radialGradient>
+    <linearGradient id="cell" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BAE6FD"/>
+      <stop offset="100%" stop-color="#67E8F9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Six colony cells in a true edge-sharing honeycomb ring -->
+  <g fill="url(#cell)" stroke="#0C4A6E" stroke-width="2" stroke-linejoin="round">
+    <polygon points="145.03,74.00 167.55,87.00 167.55,113.00 145.03,126.00 122.52,113.00 122.52,87.00"/>
+    <polygon points="122.52,113.00 145.03,126.00 145.03,152.00 122.52,165.00 100.00,152.00 100.00,126.00"/>
+    <polygon points="77.48,113.00 100.00,126.00 100.00,152.00 77.48,165.00 54.97,152.00 54.97,126.00"/>
+    <polygon points="54.97,74.00 77.48,87.00 77.48,113.00 54.97,126.00 32.45,113.00 32.45,87.00"/>
+    <polygon points="77.48,35.00 100.00,48.00 100.00,74.00 77.48,87.00 54.97,74.00 54.97,48.00"/>
+    <polygon points="122.52,35.00 145.03,48.00 145.03,74.00 122.52,87.00 100.00,74.00 100.00,48.00"/>
+  </g>
+
+  <!-- Each cell holds a colony member -->
+  <g fill="#0C4A6E" fill-opacity="0.45">
+    <circle cx="145.03" cy="100.00" r="3.2"/>
+    <circle cx="122.52" cy="139.00" r="3.2"/>
+    <circle cx="77.48"  cy="139.00" r="3.2"/>
+    <circle cx="54.97"  cy="100.00" r="3.2"/>
+    <circle cx="77.48"  cy="61.00"  r="3.2"/>
+    <circle cx="122.52" cy="61.00"  r="3.2"/>
+  </g>
+
+  <!-- The solution the colony converged on -->
+  <polygon points="100.00,74.00 122.52,87.00 122.52,113.00 100.00,126.00 77.48,113.00 77.48,87.00"
+           fill="url(#core)" stroke="#0C4A6E" stroke-width="2.5" stroke-linejoin="round"/>
 </svg>

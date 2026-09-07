@@ -1,11 +1,33 @@
 # Getting Started
 
-## Install from source
+## Install from PyPI
 
 ```bash
-python3 -m pip install -U pip
-RUSTFLAGS='-C link-args=-undefined -C link-args=dynamic_lookup' cargo build --release
+pip install colonyx
 ```
+
+That's all most users need — skip to [Continuous optimization](#continuous-optimization)
+below.
+
+## Install from source
+
+Building from source requires a Rust toolchain and, ideally,
+[`maturin`](https://www.maturin.rs/) to build the `colonyx._colonyx`
+extension in editable mode:
+
+```bash
+python3 -m pip install -U pip maturin
+maturin develop
+```
+
+!!! note "macOS extension-module linking"
+    On macOS, `cargo build`/`cargo test` (not `maturin develop`) need an
+    extra linker flag because pyo3's `extension-module` feature doesn't
+    produce a fully-linked binary Cargo can run directly:
+
+    ```bash
+    RUSTFLAGS='-C link-args=-undefined -C link-args=dynamic_lookup' cargo build --release
+    ```
 
 ## Development import
 

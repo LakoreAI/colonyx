@@ -9,7 +9,7 @@
 While the interface is Pythonic and easy to use, the core is written in Rust to deliver better performance for larger or more complex problems.
 
 [![PyPI version](https://img.shields.io/pypi/v/colonyx)](https://pypi.org/project/colonyx/)
-[![docs](https://img.shields.io/badge/docs-minlee0210.github.io/colonyx-blue)](https://minlee0210.github.io/colonyx/)
+[![docs](https://img.shields.io/badge/docs-lakoreai.github.io/colonyx-blue)](https://lakoreai.github.io/colonyx/)
 
 ## Features
 

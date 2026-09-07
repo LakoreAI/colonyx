@@ -1,16 +1,74 @@
 site_name: colonyx
-site_description: Rust-backed swarm intelligence optimization for Python
-site_url: https://minlee0210.github.io/colonyx/
-repo_url: https://github.com/MinLee0210/colonyx
-repo_name: MinLee0210/colonyx
+site_description: "A Pythonic toolkit for swarm intelligence optimization — Rust-fast, scikit-learn compatible."
+site_url: https://lakoreai.github.io/colonyx/
+repo_url: https://github.com/LakoreAI/colonyx
+repo_name: LakoreAI/colonyx
 edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  logo: colonyx-logo.svg
+  favicon: colonyx-logo.svg
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/colonyx/
+    - icon: fontawesome/brands/github
+      link: https://github.com/LakoreAI/colonyx
+
 nav:
   - Home: index.md
-  - Rust: rust.md
-  - AutoColony API: autocolony-api.md
   - Getting Started: getting-started.md
-  - Examples: examples.md
-  - CLI: cli.md
+  - Examples & Gallery: examples.md
   - Algorithms:
       - Overview: algorithms.md
       - ACO: algorithms/aco.md
@@ -32,7 +90,10 @@ nav:
           - NSGA-II: algorithms/nsga2.md
           - MOPSO: algorithms/mopso.md
           - ACO Variants: algorithms/aco-variants.md
-  - API: api.md
+  - Features:
+      - AutoColony API: autocolony-api.md
+      - CLI: cli.md
+      - Benchmarking & Metrics: benchmarking.md
+      - Rust Usage: rust.md
+  - API Reference: api.md
   - Release: release.md
-theme:
-  name: readthedocs

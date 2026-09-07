@@ -1,34 +1,53 @@
 # Algorithms
 
+Every algorithm below is reachable through `AutoColony(mode=...)`, or
+directly as a Rust-backed class from `colonyx._colonyx` /  `colonyx`.
+
 ## Discrete
 
-- `ACO` builds tours over a distance matrix.
-- `two_opt` refines a tour with local edge reversal.
+| Algorithm | Mode | Use case |
+| --- | --- | --- |
+| [ACO](algorithms/aco.md) | `aco` | TSP-style tours over a square distance matrix |
+| `two_opt` | — | Local edge-reversal refinement, used internally by ACO (`use_two_opt=True`) |
 
 ## Continuous
 
-- `PSO` maintains a swarm with velocity updates.
-- `ABC` explores food sources with employed, onlooker, and scout phases.
-- `GWO` updates wolves using alpha, beta, and delta leaders.
-- `FA` moves fireflies toward brighter neighbors.
-- `SA` performs probabilistic single-solution search.
-- `CS` uses Lévy-flight steps and nest abandonment.
-- `BA` combines frequency, loudness, and pulse rate.
-- `GSO` models luciferin-driven neighborhood movement.
-- `BFO` uses chemotaxis, reproduction, and elimination.
-- `DE` applies mutation, crossover, and greedy selection.
-- `CMA-ES` adapts a diagonal covariance model over generations.
-- Advanced pages:
-  - `PermutationGeneticOptimizer` — `algorithms/permutation-ga.md`
-  - `BinaryParticleSwarm` — `algorithms/binary-pso.md`
-  - `Nsga2Optimizer` — `algorithms/nsga2.md`
-  - `MopsoOptimizer` — `algorithms/mopso.md`
-  - `AntColony` variants — `algorithms/aco-variants.md`
+| Algorithm | Mode | Mechanism |
+| --- | --- | --- |
+| [PSO](algorithms/pso.md) | `pso` | Swarm with velocity updates toward personal/global bests |
+| [ABC](algorithms/abc.md) | `abc` | Employed, onlooker, and scout bee phases over food sources |
+| [GWO](algorithms/gwo.md) | `gwo` | Wolves converge toward alpha/beta/delta leaders |
+| [FA](algorithms/fa.md) | `fa` | Fireflies move toward brighter neighbors |
+| [SA](algorithms/sa.md) | `sa` | Single-solution probabilistic search with a cooling schedule |
+| [CS](algorithms/cs.md) | `cs` | Lévy-flight steps and nest abandonment |
+| [BA](algorithms/ba.md) | `ba` | Frequency, loudness, and pulse-rate tuning per bat |
+| [GSO](algorithms/gso.md) | `gso` | Luciferin-driven dynamic neighborhoods |
+| [BFO](algorithms/bfo.md) | `bfo` | Chemotaxis, reproduction, and elimination-dispersal |
+| [DE](algorithms/de.md) | `de` | Mutation, crossover, and greedy selection |
+| [CMA-ES](algorithms/cmaes.md) | `cmaes` | Diagonal covariance adaptation with real cumulative step-size control |
+
+## Advanced & multi-objective
+
+These aren't `AutoColony` modes — use them as Rust-backed classes directly.
+
+| Algorithm | Page | Solves |
+| --- | --- | --- |
+| `PermutationGeneticOptimizer` | [Permutation GA](algorithms/permutation-ga.md) | Permutation/TSP-style problems via order crossover |
+| `BinaryParticleSwarm` | [Binary PSO](algorithms/binary-pso.md) | Bit-vector optimization |
+| `Nsga2Optimizer` | [NSGA-II](algorithms/nsga2.md) | Multi-objective search via non-dominated sorting |
+| `MopsoOptimizer` | [MOPSO](algorithms/mopso.md) | Multi-objective PSO with a Pareto archive |
+| `AntColony` variants | [ACO Variants](algorithms/aco-variants.md) | `basic`, `acs`, `elitist`, `mmas` pheromone-update strategies |
 
 ## Implementation notes
 
-- The Rust core owns all objective evaluation loops.
-- Python only passes callables, bounds, and distance matrices into Rust.
-- `AutoColony` chooses the backend and keeps sklearn-style metadata.
+- The Rust core owns every objective evaluation loop; Python only passes
+  callables, bounds, and distance matrices in.
+- `AutoColony` chooses the backend (or accepts an explicit `mode`) and keeps
+  sklearn-style metadata (`get_params`, `set_params`, `score_history_`, ...).
 - Advanced algorithms reuse the same Rust core types (`Bounds`, `Solution`,
-  `Problem`) rather than adding a separate execution path.
+  `Problem`) rather than a separate execution path; `Nsga2Optimizer` and
+  `MopsoOptimizer` additionally implement a shared `MultiObjectiveOptimizer`
+  trait — see [Rust Usage](rust.md).
+- Population-based continuous algorithms parallelize independent fitness
+  evaluations with Rayon where doing so doesn't change the algorithm's
+  result — see [Benchmarking & Metrics](benchmarking.md) and [Rust Usage](rust.md).

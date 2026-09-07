@@ -32,10 +32,10 @@ dependencies = [
 keywords = ["optimization", "swarm", "rust", "pyo3", "sklearn"]
 
 [project.urls]
-Homepage = "https://minlee0210.github.io/colonyx/"
-Documentation = "https://minlee0210.github.io/colonyx/"
-Repository = "https://github.com/MinLee0210/colonyx"
-Issues = "https://github.com/MinLee0210/colonyx/issues"
+Homepage = "https://lakoreai.github.io/colonyx/"
+Documentation = "https://lakoreai.github.io/colonyx/"
+Repository = "https://github.com/LakoreAI/colonyx"
+Issues = "https://github.com/LakoreAI/colonyx/issues"
 
 [project.scripts]
 colonyx = "colonyx.cli:main"
@@ -51,4 +51,8 @@ python-source = "."
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
 ]
