@@ -27,6 +27,121 @@ from .metrics import (
 )
 from .utils import check_bounds, check_objective_function, check_optimization_problem
 
+# Single source of truth for every algorithm-specific parameter that
+# ``AutoColony`` exposes. Each entry maps the unified (frontend) attribute
+# name to a ``(default, backend_kwarg_name, cast)`` tuple, where
+# ``backend_kwarg_name`` is the keyword argument accepted by the
+# corresponding Rust pyo3 class in ``._colonyx`` and ``cast`` converts the
+# stored attribute to the type that constructor expects. This dict drives
+# ``get_params``, ``set_params``, ``_filter_params``, ``parameter_mapping``,
+# ``parameter_help``, and ``_create_algorithm`` so that adding or renaming a
+# parameter only requires touching this one place instead of eight.
+_ALGORITHM_PARAM_SPECS: Dict[str, Dict[str, tuple]] = {
+    "aco": {
+        "n_ants": (50, "n_ants", int),
+        "alpha": (1.0, "alpha", float),
+        "beta": (2.0, "beta", float),
+        "rho": (0.5, "rho", float),
+        "q": (1.0, "q", float),
+        "use_two_opt": (True, "use_two_opt", bool),
+    },
+    "pso": {
+        "n_particles": (30, "n_particles", int),
+        "w": (0.9, "w", float),
+        "c1": (2.0, "c1", float),
+        "c2": (2.0, "c2", float),
+    },
+    "abc": {
+        "n_bees": (50, "n_bees", int),
+        "limit": (10, "limit", int),
+    },
+    "gwo": {
+        "n_wolves": (30, "n_wolves", int),
+    },
+    "fa": {
+        "n_fireflies": (30, "n_fireflies", int),
+        "beta0": (1.0, "beta0", float),
+        "gamma": (1.0, "gamma", float),
+        "fa_alpha": (0.2, "alpha", float),
+    },
+    "sa": {
+        "initial_temperature": (10.0, "initial_temperature", float),
+        "cooling_rate": (0.95, "cooling_rate", float),
+        "step_scale": (0.1, "step_scale", float),
+    },
+    "cs": {
+        "n_nests": (25, "n_nests", int),
+        "pa": (0.25, "pa", float),
+        "cs_alpha": (0.01, "alpha", float),
+        "levy_scale": (1.0, "levy_scale", float),
+    },
+    "ba": {
+        "n_bats": (30, "n_bats", int),
+        "fmin": (0.0, "fmin", float),
+        "fmax": (2.0, "fmax", float),
+        "bat_alpha": (0.9, "alpha", float),
+        "bat_gamma": (0.9, "gamma", float),
+        "loudness": (1.0, "loudness", float),
+        "pulse_rate": (0.5, "pulse_rate", float),
+    },
+    "gso": {
+        "n_worms": (30, "n_worms", int),
+        "luciferin_decay": (0.4, "luciferin_decay", float),
+        "luciferin_enhancement": (0.6, "luciferin_enhancement", float),
+        "gso_step_size": (0.1, "step_size", float),
+        "neighborhood_radius": (1.0, "neighborhood_radius", float),
+    },
+    "bfo": {
+        "n_bacteria": (30, "n_bacteria", int),
+        "n_chemotactic_steps": (10, "n_chemotactic_steps", int),
+        "n_reproduction_steps": (4, "n_reproduction_steps", int),
+        "elimination_probability": (0.25, "elimination_probability", float),
+        "bfo_step_scale": (0.1, "step_scale", float),
+    },
+    "de": {
+        "n_individuals": (40, "n_individuals", int),
+        "f": (0.8, "f", float),
+        "cr": (0.9, "cr", float),
+    },
+    "cmaes": {
+        "n_individuals": (40, "n_individuals", int),
+        "cmaes_sigma": (0.5, "sigma", float),
+    },
+}
+
+# Backend pyo3 class (in ``._colonyx``) for each mode, keyed the same way as
+# ``_ALGORITHM_PARAM_SPECS``.
+_BACKEND_CLASSES: Dict[str, str] = {
+    "aco": "AntColony",
+    "pso": "ParticleSwarm",
+    "abc": "BeeColony",
+    "gwo": "GreyWolfOptimizer",
+    "fa": "FireflyOptimizer",
+    "sa": "SimulatedAnnealing",
+    "cs": "CuckooSearch",
+    "ba": "BatAlgorithm",
+    "gso": "GlowwormOptimizer",
+    "bfo": "BacterialForagingOptimizer",
+    "de": "DifferentialEvolution",
+    "cmaes": "CmaEsOptimizer",
+}
+
+# Flattened attribute defaults, used only to keep AutoColony.__init__'s
+# keyword defaults in sync with the registry above. __init__ itself must
+# stay an explicit, introspectable, **kwargs-free signature that assigns
+# every argument to an identically named attribute — that is a hard
+# requirement of the scikit-learn estimator contract (clone()/get_params()
+# rely on it), so it cannot itself be generated from a loop.
+_DEFAULTS: Dict[str, Any] = {
+    attr: spec[0] for specs in _ALGORITHM_PARAM_SPECS.values() for attr, spec in specs.items()
+}
+
+# All algorithm-specific attribute names across every mode, used by
+# set_params() to validate incoming keys.
+_ALL_PARAM_NAMES = {"mode", "n_iterations", "random_state"} | {
+    attr for specs in _ALGORITHM_PARAM_SPECS.values() for attr in specs
+}
+
 
 class AutoColony(BaseOptimizer, TransformerMixin):
     """
@@ -76,51 +191,51 @@ class AutoColony(BaseOptimizer, TransformerMixin):
         mode: str = "auto",
         n_iterations: int = 100,
         random_state: Optional[int] = None,
-        n_ants: int = 50,
-        alpha: float = 1.0,
-        beta: float = 2.0,
-        rho: float = 0.5,
-        q: float = 1.0,
-        n_particles: int = 30,
-        w: float = 0.9,
-        c1: float = 2.0,
-        c2: float = 2.0,
-        n_bees: int = 50,
-        limit: int = 10,
-        n_wolves: int = 30,
-        n_fireflies: int = 30,
-        beta0: float = 1.0,
-        gamma: float = 1.0,
-        fa_alpha: float = 0.2,
-        initial_temperature: float = 10.0,
-        cooling_rate: float = 0.95,
-        step_scale: float = 0.1,
-        n_nests: int = 25,
-        pa: float = 0.25,
-        cs_alpha: float = 0.01,
-        levy_scale: float = 1.0,
-        n_bats: int = 30,
-        fmin: float = 0.0,
-        fmax: float = 2.0,
-        bat_alpha: float = 0.9,
-        bat_gamma: float = 0.9,
-        loudness: float = 1.0,
-        pulse_rate: float = 0.5,
-        n_worms: int = 30,
-        luciferin_decay: float = 0.4,
-        luciferin_enhancement: float = 0.6,
-        gso_step_size: float = 0.1,
-        neighborhood_radius: float = 1.0,
-        n_bacteria: int = 30,
-        n_chemotactic_steps: int = 10,
-        n_reproduction_steps: int = 4,
-        elimination_probability: float = 0.25,
-        bfo_step_scale: float = 0.1,
-        use_two_opt: bool = True,
-        n_individuals: int = 40,
-        f: float = 0.8,
-        cr: float = 0.9,
-        cmaes_sigma: float = 0.5,
+        n_ants: int = _DEFAULTS["n_ants"],
+        alpha: float = _DEFAULTS["alpha"],
+        beta: float = _DEFAULTS["beta"],
+        rho: float = _DEFAULTS["rho"],
+        q: float = _DEFAULTS["q"],
+        n_particles: int = _DEFAULTS["n_particles"],
+        w: float = _DEFAULTS["w"],
+        c1: float = _DEFAULTS["c1"],
+        c2: float = _DEFAULTS["c2"],
+        n_bees: int = _DEFAULTS["n_bees"],
+        limit: int = _DEFAULTS["limit"],
+        n_wolves: int = _DEFAULTS["n_wolves"],
+        n_fireflies: int = _DEFAULTS["n_fireflies"],
+        beta0: float = _DEFAULTS["beta0"],
+        gamma: float = _DEFAULTS["gamma"],
+        fa_alpha: float = _DEFAULTS["fa_alpha"],
+        initial_temperature: float = _DEFAULTS["initial_temperature"],
+        cooling_rate: float = _DEFAULTS["cooling_rate"],
+        step_scale: float = _DEFAULTS["step_scale"],
+        n_nests: int = _DEFAULTS["n_nests"],
+        pa: float = _DEFAULTS["pa"],
+        cs_alpha: float = _DEFAULTS["cs_alpha"],
+        levy_scale: float = _DEFAULTS["levy_scale"],
+        n_bats: int = _DEFAULTS["n_bats"],
+        fmin: float = _DEFAULTS["fmin"],
+        fmax: float = _DEFAULTS["fmax"],
+        bat_alpha: float = _DEFAULTS["bat_alpha"],
+        bat_gamma: float = _DEFAULTS["bat_gamma"],
+        loudness: float = _DEFAULTS["loudness"],
+        pulse_rate: float = _DEFAULTS["pulse_rate"],
+        n_worms: int = _DEFAULTS["n_worms"],
+        luciferin_decay: float = _DEFAULTS["luciferin_decay"],
+        luciferin_enhancement: float = _DEFAULTS["luciferin_enhancement"],
+        gso_step_size: float = _DEFAULTS["gso_step_size"],
+        neighborhood_radius: float = _DEFAULTS["neighborhood_radius"],
+        n_bacteria: int = _DEFAULTS["n_bacteria"],
+        n_chemotactic_steps: int = _DEFAULTS["n_chemotactic_steps"],
+        n_reproduction_steps: int = _DEFAULTS["n_reproduction_steps"],
+        elimination_probability: float = _DEFAULTS["elimination_probability"],
+        bfo_step_scale: float = _DEFAULTS["bfo_step_scale"],
+        use_two_opt: bool = _DEFAULTS["use_two_opt"],
+        n_individuals: int = _DEFAULTS["n_individuals"],
+        f: float = _DEFAULTS["f"],
+        cr: float = _DEFAULTS["cr"],
+        cmaes_sigma: float = _DEFAULTS["cmaes_sigma"],
     ):
         super().__init__(mode=mode, n_iterations=n_iterations, random_state=random_state)
         self.mode = mode
@@ -251,102 +366,12 @@ class AutoColony(BaseOptimizer, TransformerMixin):
     def parameter_mapping(self, algorithm_mode: Optional[str] = None):
         """Map unified parameter names to backend algorithm parameters."""
         mode = algorithm_mode or self.mode
-        mappings = {
-            "aco": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_ants": "n_ants",
-                "alpha": "alpha",
-                "beta": "beta",
-                "rho": "rho",
-                "q": "q",
-            },
-            "pso": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_particles": "n_particles",
-                "w": "w",
-                "c1": "c1",
-                "c2": "c2",
-            },
-            "abc": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_bees": "n_bees",
-                "limit": "limit",
-            },
-            "gwo": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_wolves": "n_wolves",
-            },
-            "fa": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_fireflies": "n_fireflies",
-                "beta0": "beta0",
-                "gamma": "gamma",
-                "fa_alpha": "fa_alpha",
-            },
-            "sa": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "initial_temperature": "initial_temperature",
-                "cooling_rate": "cooling_rate",
-                "step_scale": "step_scale",
-            },
-            "cs": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_nests": "n_nests",
-                "pa": "pa",
-                "cs_alpha": "alpha",
-                "levy_scale": "levy_scale",
-            },
-            "ba": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_bats": "n_bats",
-                "fmin": "fmin",
-                "fmax": "fmax",
-                "bat_alpha": "bat_alpha",
-                "bat_gamma": "bat_gamma",
-                "loudness": "loudness",
-                "pulse_rate": "pulse_rate",
-            },
-            "gso": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_worms": "n_worms",
-                "luciferin_decay": "luciferin_decay",
-                "luciferin_enhancement": "luciferin_enhancement",
-                "gso_step_size": "gso_step_size",
-                "neighborhood_radius": "neighborhood_radius",
-            },
-            "bfo": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_bacteria": "n_bacteria",
-                "n_chemotactic_steps": "n_chemotactic_steps",
-                "n_reproduction_steps": "n_reproduction_steps",
-                "elimination_probability": "elimination_probability",
-                "bfo_step_scale": "bfo_step_scale",
-            },
-            "de": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_individuals": "n_individuals",
-                "f": "f",
-                "cr": "cr",
-            },
-            "cmaes": {
-                "n_iterations": "n_iterations",
-                "random_state": "random_state",
-                "n_individuals": "n_individuals",
-                "cmaes_sigma": "cmaes_sigma",
-            },
-        }
-        return mappings.get(mode, {})
+        specs = _ALGORITHM_PARAM_SPECS.get(mode)
+        if specs is None:
+            return {}
+        mapping = {"n_iterations": "n_iterations", "random_state": "random_state"}
+        mapping.update({attr: spec[1] for attr, spec in specs.items()})
+        return mapping
 
     def suggest_parameters(self, X, y=None, bounds=None):
         """Suggest mode-specific parameters for the current problem."""
@@ -483,22 +508,13 @@ class AutoColony(BaseOptimizer, TransformerMixin):
     def parameter_help(self, algorithm_mode: Optional[str] = None):
         """Return concise parameter help text for a specific algorithm mode."""
         mode = algorithm_mode or self.mode
-        help_map = {
-            "aco": "ACO params: n_ants, alpha, beta, rho, q",
-            "pso": "PSO params: n_particles, w, c1, c2",
-            "abc": "ABC params: n_bees, limit",
-            "gwo": "GWO params: n_wolves",
-            "fa": "FA params: n_fireflies, beta0, gamma, fa_alpha",
-            "sa": "SA params: initial_temperature, cooling_rate, step_scale",
-            "cs": "CS params: n_nests, pa, levy_scale",
-            "ba": "BA params: n_bats, fmin, fmax, bat_alpha, bat_gamma, loudness, pulse_rate",
-            "gso": "GSO params: n_worms, luciferin_decay, luciferin_enhancement, gso_step_size",
-            "bfo": "BFO params: n_bacteria, n_chemotactic_steps, n_reproduction_steps, elimination_probability",
-            "de": "DE params: n_individuals, f, cr",
-            "cmaes": "CMA-ES params: n_individuals, cmaes_sigma",
-            "auto": "Auto mode selects a backend from the input shape and bounds",
-        }
-        return help_map.get(mode, "Unknown mode")
+        if mode == "auto":
+            return "Auto mode selects a backend from the input shape and bounds"
+        specs = _ALGORITHM_PARAM_SPECS.get(mode)
+        if specs is None:
+            return "Unknown mode"
+        label = "CMA-ES" if mode == "cmaes" else mode.upper()
+        return f"{label} params: " + ", ".join(specs)
 
     def _filter_params(self, algorithm_mode: str) -> Dict[str, Any]:
         """Filter parameters relevant to the specific algorithm."""
@@ -506,114 +522,10 @@ class AutoColony(BaseOptimizer, TransformerMixin):
             "n_iterations": self.n_iterations,
             "random_state": self.random_state,
         }
-
-        if algorithm_mode == "aco":
-            return {
-                **base_params,
-                "n_ants": self.n_ants,
-                "alpha": self.alpha,
-                "beta": self.beta,
-                "rho": self.rho,
-                "q": self.q,
-                "use_two_opt": self.use_two_opt,
-            }
-
-        if algorithm_mode == "pso":
-            return {
-                **base_params,
-                "n_particles": self.n_particles,
-                "w": self.w,
-                "c1": self.c1,
-                "c2": self.c2,
-            }
-
-        if algorithm_mode == "abc":
-            return {
-                **base_params,
-                "n_bees": self.n_bees,
-                "limit": self.limit,
-            }
-
-        if algorithm_mode == "gwo":
-            return {
-                **base_params,
-                "n_wolves": self.n_wolves,
-            }
-
-        if algorithm_mode == "fa":
-            return {
-                **base_params,
-                "n_fireflies": self.n_fireflies,
-                "beta0": self.beta0,
-                "gamma": self.gamma,
-                "fa_alpha": self.fa_alpha,
-            }
-
-        if algorithm_mode == "sa":
-            return {
-                **base_params,
-                "initial_temperature": self.initial_temperature,
-                "cooling_rate": self.cooling_rate,
-                "step_scale": self.step_scale,
-            }
-
-        if algorithm_mode == "cs":
-            return {
-                **base_params,
-                "n_nests": self.n_nests,
-                "pa": self.pa,
-                "cs_alpha": self.cs_alpha,
-                "levy_scale": self.levy_scale,
-            }
-
-        if algorithm_mode == "ba":
-            return {
-                **base_params,
-                "n_bats": self.n_bats,
-                "fmin": self.fmin,
-                "fmax": self.fmax,
-                "bat_alpha": self.bat_alpha,
-                "bat_gamma": self.bat_gamma,
-                "loudness": self.loudness,
-                "pulse_rate": self.pulse_rate,
-            }
-
-        if algorithm_mode == "gso":
-            return {
-                **base_params,
-                "n_worms": self.n_worms,
-                "luciferin_decay": self.luciferin_decay,
-                "luciferin_enhancement": self.luciferin_enhancement,
-                "gso_step_size": self.gso_step_size,
-                "neighborhood_radius": self.neighborhood_radius,
-            }
-
-        if algorithm_mode == "bfo":
-            return {
-                **base_params,
-                "n_bacteria": self.n_bacteria,
-                "n_chemotactic_steps": self.n_chemotactic_steps,
-                "n_reproduction_steps": self.n_reproduction_steps,
-                "elimination_probability": self.elimination_probability,
-                "bfo_step_scale": self.bfo_step_scale,
-            }
-
-        if algorithm_mode == "de":
-            return {
-                **base_params,
-                "n_individuals": self.n_individuals,
-                "f": self.f,
-                "cr": self.cr,
-            }
-
-        if algorithm_mode == "cmaes":
-            return {
-                **base_params,
-                "n_individuals": self.n_individuals,
-                "cmaes_sigma": self.cmaes_sigma,
-            }
-
-        return base_params
+        specs = _ALGORITHM_PARAM_SPECS.get(algorithm_mode)
+        if specs is None:
+            return base_params
+        return {**base_params, **{attr: getattr(self, attr) for attr in specs}}
 
     def resolve_parameter_conflicts(self, algorithm_mode: str):
         """Resolve mode-specific parameters and record ignored parameters."""
@@ -628,162 +540,25 @@ class AutoColony(BaseOptimizer, TransformerMixin):
         return active
 
     def _create_algorithm(self, algorithm_mode: str):
-        """Create the appropriate algorithm instance."""
-        if algorithm_mode == "aco":
-            from ._colonyx import AntColony
+        """Create the appropriate algorithm instance from the parameter registry."""
+        specs = _ALGORITHM_PARAM_SPECS.get(algorithm_mode)
+        backend_name = _BACKEND_CLASSES.get(algorithm_mode)
+        if specs is None or backend_name is None:
+            raise ValueError(f"Unknown algorithm mode: {algorithm_mode}")
 
-            params = self.resolve_parameter_conflicts("aco")
-            return AntColony(
-                n_ants=int(params["n_ants"]),
-                n_iterations=int(params["n_iterations"]),
-                alpha=float(params["alpha"]),
-                beta=float(params["beta"]),
-                rho=float(params["rho"]),
-                q=float(params["q"]),
-                use_two_opt=bool(params["use_two_opt"]),
-                random_state=params["random_state"],
-            )
+        from . import _colonyx
 
-        if algorithm_mode == "pso":
-            from ._colonyx import ParticleSwarm
+        backend_cls = getattr(_colonyx, backend_name)
+        params = self.resolve_parameter_conflicts(algorithm_mode)
 
-            params = self.resolve_parameter_conflicts("pso")
-            return ParticleSwarm(
-                n_particles=int(params["n_particles"]),
-                n_iterations=int(params["n_iterations"]),
-                w=float(params["w"]),
-                c1=float(params["c1"]),
-                c2=float(params["c2"]),
-                random_state=params["random_state"],
-            )
+        kwargs: Dict[str, Any] = {
+            "n_iterations": int(params["n_iterations"]),
+            "random_state": params["random_state"],
+        }
+        for attr, (_default, backend_kwarg, cast) in specs.items():
+            kwargs[backend_kwarg] = cast(params[attr])
 
-        if algorithm_mode == "abc":
-            from ._colonyx import BeeColony
-
-            params = self.resolve_parameter_conflicts("abc")
-            return BeeColony(
-                n_bees=int(params["n_bees"]),
-                n_iterations=int(params["n_iterations"]),
-                limit=int(params["limit"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "gwo":
-            from ._colonyx import GreyWolfOptimizer
-
-            params = self.resolve_parameter_conflicts("gwo")
-            return GreyWolfOptimizer(
-                n_wolves=int(params["n_wolves"]),
-                n_iterations=int(params["n_iterations"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "fa":
-            from ._colonyx import FireflyOptimizer
-
-            params = self.resolve_parameter_conflicts("fa")
-            return FireflyOptimizer(
-                n_fireflies=int(params["n_fireflies"]),
-                n_iterations=int(params["n_iterations"]),
-                beta0=float(params["beta0"]),
-                gamma=float(params["gamma"]),
-                alpha=float(params["fa_alpha"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "sa":
-            from ._colonyx import SimulatedAnnealing
-
-            params = self.resolve_parameter_conflicts("sa")
-            return SimulatedAnnealing(
-                initial_temperature=float(params["initial_temperature"]),
-                cooling_rate=float(params["cooling_rate"]),
-                step_scale=float(params["step_scale"]),
-                n_iterations=int(params["n_iterations"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "cs":
-            from ._colonyx import CuckooSearch
-
-            params = self.resolve_parameter_conflicts("cs")
-            return CuckooSearch(
-                n_nests=int(params["n_nests"]),
-                n_iterations=int(params["n_iterations"]),
-                pa=float(params["pa"]),
-                alpha=float(params["cs_alpha"]),
-                levy_scale=float(params["levy_scale"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "ba":
-            from ._colonyx import BatAlgorithm
-
-            params = self.resolve_parameter_conflicts("ba")
-            return BatAlgorithm(
-                n_bats=int(params["n_bats"]),
-                n_iterations=int(params["n_iterations"]),
-                fmin=float(params["fmin"]),
-                fmax=float(params["fmax"]),
-                alpha=float(params["bat_alpha"]),
-                gamma=float(params["bat_gamma"]),
-                loudness=float(params["loudness"]),
-                pulse_rate=float(params["pulse_rate"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "gso":
-            from ._colonyx import GlowwormOptimizer
-
-            params = self.resolve_parameter_conflicts("gso")
-            return GlowwormOptimizer(
-                n_worms=int(params["n_worms"]),
-                n_iterations=int(params["n_iterations"]),
-                luciferin_decay=float(params["luciferin_decay"]),
-                luciferin_enhancement=float(params["luciferin_enhancement"]),
-                step_size=float(params["gso_step_size"]),
-                neighborhood_radius=float(params["neighborhood_radius"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "bfo":
-            from ._colonyx import BacterialForagingOptimizer
-
-            params = self.resolve_parameter_conflicts("bfo")
-            return BacterialForagingOptimizer(
-                n_bacteria=int(params["n_bacteria"]),
-                n_iterations=int(params["n_iterations"]),
-                n_chemotactic_steps=int(params["n_chemotactic_steps"]),
-                n_reproduction_steps=int(params["n_reproduction_steps"]),
-                elimination_probability=float(params["elimination_probability"]),
-                step_scale=float(params["bfo_step_scale"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "de":
-            from ._colonyx import DifferentialEvolution
-
-            params = self.resolve_parameter_conflicts("de")
-            return DifferentialEvolution(
-                n_individuals=int(params["n_individuals"]),
-                n_iterations=int(params["n_iterations"]),
-                f=float(params["f"]),
-                cr=float(params["cr"]),
-                random_state=params["random_state"],
-            )
-
-        if algorithm_mode == "cmaes":
-            from ._colonyx import CmaEsOptimizer
-
-            params = self.resolve_parameter_conflicts("cmaes")
-            return CmaEsOptimizer(
-                n_individuals=int(params["n_individuals"]),
-                n_iterations=int(params["n_iterations"]),
-                sigma=float(params["cmaes_sigma"]),
-                random_state=params["random_state"],
-            )
-
-        raise ValueError(f"Unknown algorithm mode: {algorithm_mode}")
+        return backend_cls(**kwargs)
 
     def _as_distance_matrix(self, X):
         """Validate and convert X into a square distance matrix."""
@@ -1114,111 +889,19 @@ class AutoColony(BaseOptimizer, TransformerMixin):
 
     def get_params(self, deep=True):
         """Get parameters for this estimator."""
-        params = {
+        params: Dict[str, Any] = {
             "mode": self.mode,
             "n_iterations": self.n_iterations,
             "random_state": self.random_state,
-            "n_ants": self.n_ants,
-            "alpha": self.alpha,
-            "beta": self.beta,
-            "rho": self.rho,
-            "q": self.q,
-            "n_particles": self.n_particles,
-            "w": self.w,
-            "c1": self.c1,
-            "c2": self.c2,
-            "n_bees": self.n_bees,
-            "limit": self.limit,
-            "n_wolves": self.n_wolves,
-            "n_fireflies": self.n_fireflies,
-            "beta0": self.beta0,
-            "gamma": self.gamma,
-            "fa_alpha": self.fa_alpha,
-            "initial_temperature": self.initial_temperature,
-            "cooling_rate": self.cooling_rate,
-            "step_scale": self.step_scale,
-            "n_nests": self.n_nests,
-            "pa": self.pa,
-            "cs_alpha": self.cs_alpha,
-            "levy_scale": self.levy_scale,
-            "n_bats": self.n_bats,
-            "fmin": self.fmin,
-            "fmax": self.fmax,
-            "bat_alpha": self.bat_alpha,
-            "bat_gamma": self.bat_gamma,
-            "loudness": self.loudness,
-            "pulse_rate": self.pulse_rate,
-            "n_worms": self.n_worms,
-            "luciferin_decay": self.luciferin_decay,
-            "luciferin_enhancement": self.luciferin_enhancement,
-            "gso_step_size": self.gso_step_size,
-            "neighborhood_radius": self.neighborhood_radius,
-            "n_bacteria": self.n_bacteria,
-            "n_chemotactic_steps": self.n_chemotactic_steps,
-            "n_reproduction_steps": self.n_reproduction_steps,
-            "elimination_probability": self.elimination_probability,
-            "bfo_step_scale": self.bfo_step_scale,
-            "use_two_opt": self.use_two_opt,
-            "n_individuals": self.n_individuals,
-            "f": self.f,
-            "cr": self.cr,
-            "cmaes_sigma": self.cmaes_sigma,
         }
+        for name in _ALL_PARAM_NAMES - set(params):
+            params[name] = getattr(self, name)
         return params
 
     def set_params(self, **params):
         """Set parameters for this estimator."""
         for key, value in params.items():
-            if key in {
-                "mode",
-                "n_iterations",
-                "random_state",
-                "n_ants",
-                "alpha",
-                "beta",
-                "rho",
-                "q",
-                "n_particles",
-                "w",
-                "c1",
-                "c2",
-                "n_bees",
-                "limit",
-                "n_wolves",
-                "n_fireflies",
-                "beta0",
-                "gamma",
-                "fa_alpha",
-                "initial_temperature",
-                "cooling_rate",
-                "step_scale",
-                "n_nests",
-                "pa",
-                "cs_alpha",
-                "levy_scale",
-                "n_bats",
-                "fmin",
-                "fmax",
-                "bat_alpha",
-                "bat_gamma",
-                "loudness",
-                "pulse_rate",
-                "n_worms",
-                "luciferin_decay",
-                "luciferin_enhancement",
-                "gso_step_size",
-                "neighborhood_radius",
-                "n_bacteria",
-                "n_chemotactic_steps",
-                "n_reproduction_steps",
-                "elimination_probability",
-                "bfo_step_scale",
-                "use_two_opt",
-                "n_individuals",
-                "f",
-                "cr",
-                "cmaes_sigma",
-            }:
+            if key in _ALL_PARAM_NAMES:
                 setattr(self, key, value)
             else:
                 raise ValueError(f"Unknown parameter: {key}")

@@ -37,6 +37,9 @@ pub struct AntColony {
     best_solution: Option<Solution>,
 
     random_seed: Option<u64>,
+
+    /// Best-so-far tour length after each iteration (for convergence tracking).
+    pub history: Vec<f64>,
 }
 
 impl AntColony {
@@ -70,6 +73,7 @@ impl AntColony {
             pheromone_matrix: None,
             best_solution: None,
             random_seed: None,
+            history: Vec::new(),
         }
     }
 
@@ -253,6 +257,7 @@ impl Optimizer for AntColony {
     type Solution = Solution;
 
     fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError> {
+        self.history.clear();
         if problem.dimensions() == 0 {
             return Err(OptimizationError::InvalidInput(
                 "Problem must have at least one dimension".to_string(),
@@ -309,6 +314,7 @@ impl Optimizer for AntColony {
 
             // Evaporate, then let this iteration's ants deposit pheromone.
             self.update_pheromones(&solutions);
+            self.history.push(best_fitness);
         }
 
         Ok(())
@@ -362,6 +368,33 @@ mod tests {
             }
         }
         DiscreteProblem { name: "ring".to_string(), distance_matrix: matrix }
+    }
+
+    #[test]
+    fn history_records_one_entry_per_iteration_not_just_the_final_score() {
+        // Regression test: `history` used to not exist at all, so bindings.rs
+        // only ever exposed a length-1 vector containing the final score.
+        let mut aco = AntColony::new(
+            10,
+            15,
+            1.0,
+            2.0,
+            0.5,
+            1.0,
+            false,
+            AcoVariant::Basic,
+            0.9,
+            2.0,
+            1e-4,
+            10.0,
+        );
+        aco.set_random_seed(Some(3));
+        aco.fit(&ring_problem(5)).unwrap();
+        assert_eq!(aco.history.len(), 15);
+        // Best-so-far is monotonically non-increasing.
+        for window in aco.history.windows(2) {
+            assert!(window[1] <= window[0]);
+        }
     }
 
     #[test]

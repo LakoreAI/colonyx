@@ -1,5 +1,37 @@
+/// Problem trait for algorithms that return several objective values per
+/// candidate (Pareto-front optimizers such as NSGA-II or MOPSO). Kept
+/// separate from `Problem` because a single scalar `evaluate()` cannot
+/// represent a vector of objectives.
+pub trait MultiObjectiveProblem: Sync {
+    fn evaluate(&self, solution: &[f64]) -> Vec<f64>;
+    fn dimensions(&self) -> usize;
+}
+
+/// Multi-objective continuous problem backed by a Python-callable-shaped
+/// closure returning one fitness value per objective.
+#[allow(clippy::type_complexity)]
+pub struct MultiObjectiveContinuousProblem {
+    pub name: String,
+    pub dimensions: usize,
+    pub objective_function: Box<dyn Fn(&[f64]) -> Vec<f64> + Send + Sync>,
+}
+
+impl MultiObjectiveProblem for MultiObjectiveContinuousProblem {
+    fn evaluate(&self, solution: &[f64]) -> Vec<f64> {
+        (self.objective_function)(solution)
+    }
+
+    fn dimensions(&self) -> usize {
+        self.dimensions
+    }
+}
+
 /// Generic problem trait
-pub trait Problem {
+///
+/// Requires `Sync` so a `&dyn Problem` can be shared across threads, which
+/// lets population-based optimizers batch-evaluate independent candidates in
+/// parallel (see `algorithms::base::evaluate_population`).
+pub trait Problem: Sync {
     fn evaluate(&self, solution: &[f64]) -> f64;
     fn dimensions(&self) -> usize;
     fn is_discrete(&self) -> bool;
@@ -13,10 +45,11 @@ pub trait Problem {
 }
 
 /// Continuous problem (PSO, ABC)
+#[allow(clippy::type_complexity)]
 pub struct ContinuousProblem {
     pub name: String,
     pub dimensions: usize,
-    pub objective_function: Box<dyn Fn(&[f64]) -> f64>,
+    pub objective_function: Box<dyn Fn(&[f64]) -> f64 + Send + Sync>,
 }
 
 impl ContinuousProblem {

@@ -365,6 +365,33 @@ def paired_significance_test(scores_a: Sequence[float], scores_b: Sequence[float
     return {"statistic": float(statistic), "pvalue": float(pvalue)}
 
 
+def wilcoxon_signed_rank_test(scores_a: Sequence[float], scores_b: Sequence[float]) -> dict[str, float]:
+    """Run a Wilcoxon signed-rank test between two paired sets of scores.
+
+    This is the non-parametric counterpart to ``paired_significance_test``'s
+    paired t-test: it does not assume the score differences are normally
+    distributed, which is often a more realistic assumption for optimizer
+    benchmark scores. Requires scipy for the same reason as
+    ``paired_significance_test`` (computing a real p-value needs its
+    distribution machinery); fails loudly rather than fabricating a result
+    when scipy is unavailable.
+    """
+    values_a = np.asarray(scores_a, dtype=float)
+    values_b = np.asarray(scores_b, dtype=float)
+    if values_a.size != values_b.size or values_a.size == 0:
+        raise ValueError("scores_a and scores_b must be non-empty and have the same length")
+
+    if scipy_stats is None:
+        raise ImportError(
+            "wilcoxon_signed_rank_test requires scipy (for the Wilcoxon "
+            "signed-rank distribution used to compute pvalue); install it "
+            "with `pip install scipy`"
+        )
+
+    statistic, pvalue = scipy_stats.wilcoxon(values_a, values_b)
+    return {"statistic": float(statistic), "pvalue": float(pvalue)}
+
+
 def aggregate_runs(scores: Sequence[float], optimum: float = 0.0, success_threshold: float = 0.0) -> dict[str, float]:
     """Convenience aggregation for benchmark runs."""
     distribution = distribution_analysis(scores)

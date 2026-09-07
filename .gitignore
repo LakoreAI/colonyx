@@ -86,6 +86,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+# QA documentation (generated or temporary)
+docs/QA.md
 
 # PyBuilder
 .pybuilder/

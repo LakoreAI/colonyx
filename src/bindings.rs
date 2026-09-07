@@ -32,7 +32,7 @@ fn make_objective(
     py: Python<'_>,
     func: PyObject,
     probe_point: &[f64],
-) -> PyResult<Box<dyn Fn(&[f64]) -> f64>> {
+) -> PyResult<Box<dyn Fn(&[f64]) -> f64 + Send + Sync>> {
     let probe = func.call1(py, (probe_point.to_vec(),))?;
     probe.extract::<f64>(py)?;
 
@@ -48,7 +48,7 @@ fn make_multi_objective(
     py: Python<'_>,
     func: PyObject,
     probe_point: &[f64],
-) -> PyResult<Box<dyn Fn(&[f64]) -> Vec<f64>>> {
+) -> PyResult<Box<dyn Fn(&[f64]) -> Vec<f64> + Send + Sync>> {
     let probe = func.call1(py, (probe_point.to_vec(),))?;
     probe.extract::<Vec<f64>>(py)?;
 
@@ -161,7 +161,7 @@ impl PyAntColony {
         if let Some(solution) = self.inner.predict() {
             self.best_tour = Some(solution.variables.iter().map(|&x| x as usize).collect());
             self.best_length = solution.fitness;
-            self.history_ = self.best_length.into_iter().collect();
+            self.history_ = self.inner.history.clone();
             self.population_ = self
                 .best_tour
                 .clone()
@@ -279,15 +279,15 @@ impl PyParticleSwarm {
             bounds,
         );
         pso.set_random_seed(self.random_state);
-        pso.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| pso.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = pso.predict() {
             self.best_position = Some(solution.variables);
             self.best_score = solution.fitness;
-            self.history_ = self.best_score.into_iter().collect();
-            self.population_ =
-                self.best_position.clone().map(|position| vec![position]).unwrap_or_default();
         }
+        self.history_ = pso.history;
+        self.population_ = pso.population;
 
         Ok(())
     }
@@ -379,15 +379,15 @@ impl PyBeeColony {
 
         let mut abc = BeeColony::new(self.n_bees, self.n_iterations, self.limit, bounds);
         abc.set_random_seed(self.random_state);
-        abc.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| abc.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = abc.predict() {
             self.best_position = Some(solution.variables);
             self.best_score = solution.fitness;
-            self.history_ = self.best_score.into_iter().collect();
-            self.population_ =
-                self.best_position.clone().map(|position| vec![position]).unwrap_or_default();
         }
+        self.history_ = abc.history;
+        self.population_ = abc.population;
 
         Ok(())
     }
@@ -466,7 +466,8 @@ impl PyGreyWolfOptimizer {
 
         let mut optimizer = GreyWolfOptimizer::new(self.n_wolves, self.n_iterations, bounds);
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -568,7 +569,8 @@ impl PyFireflyOptimizer {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -668,7 +670,8 @@ impl PySimulatedAnnealing {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -772,7 +775,8 @@ impl PyCuckooSearch {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -892,7 +896,8 @@ impl PyBatAlgorithm {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1005,7 +1010,8 @@ impl PyGlowwormOptimizer {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1116,7 +1122,8 @@ impl PyBacterialForagingOptimizer {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1217,7 +1224,8 @@ impl PyDifferentialEvolution {
             bounds,
         );
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1307,7 +1315,8 @@ impl PyCmaEsOptimizer {
         let mut optimizer =
             CmaEsOptimizer::new(self.n_individuals, self.n_iterations, self.sigma, bounds);
         optimizer.set_random_seed(self.random_state);
-        optimizer.fit(&problem).map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| optimizer.fit(&problem))
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = optimizer.predict() {
             self.best_position = Some(solution.variables);
@@ -1644,7 +1653,9 @@ impl PyNsga2Optimizer {
                 .collect::<Vec<_>>();
             Ok(crate::algorithms::advanced::hypervolume_2d(&points, [1.0, 1.0]))
         } else {
-            Ok(0.0)
+            Err(PyValueError::new_err(
+                "score() computes a 2-objective hypervolume; fit() was called with an objective returning fewer than 2 values, so no hypervolume can be computed",
+            ))
         }
     }
 
@@ -1770,7 +1781,9 @@ impl PyMopsoOptimizer {
                 .collect::<Vec<_>>();
             Ok(crate::algorithms::advanced::hypervolume_2d(&points, [1.0, 1.0]))
         } else {
-            Ok(0.0)
+            Err(PyValueError::new_err(
+                "score() computes a 2-objective hypervolume; fit() was called with an objective returning fewer than 2 values, so no hypervolume can be computed",
+            ))
         }
     }
 

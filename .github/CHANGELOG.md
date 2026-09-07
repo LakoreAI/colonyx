@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `wilcoxon_signed_rank_test(scores_a, scores_b)` in `metrics.py`, the non-parametric alternative to `paired_significance_test` for comparing two sets of optimization run scores that aren't normally distributed. Follows the same scipy-required validation pattern (raises `ImportError` rather than fabricating a p-value if scipy is absent).
+- `levy`, `zakharov`, and `michalewicz` benchmark functions in `benchmarks.py`, wired into `benchmark_suite()` with literature-standard bounds.
+- `load_tsplib(path_or_lines)` in `benchmarks.py`: a minimal TSPLIB-format loader (`NODE_COORD_SECTION` / `EUC_2D` instances) that returns a Euclidean distance matrix ready for `AutoColony(mode="aco").fit(...)`.
+- A `MultiObjectiveProblem` trait (`core/problem.rs`) and `MultiObjectiveOptimizer` trait (`algorithms/base.rs`), so `Nsga2Optimizer` and `MopsoOptimizer` can now be held polymorphically as `Box<dyn MultiObjectiveOptimizer>` instead of only being reachable through their own `fit_with_objective` method. `BinaryParticleSwarm` now implements the existing single-objective `Optimizer` trait for the same reason. Existing `fit_with_objective` methods are unchanged and still callable directly.
+- Rayon-backed parallel fitness evaluation (`algorithms::base::evaluate_population`), applied to population initialization for PSO/ABC/GWO/FA/CS/BA/GSO/BFO/DE and to CMA-ES's per-generation evaluation (CMA-ES's canonical generational structure makes this a real, zero-behavior-change speedup rather than just an init-time one). Real-world payoff depends on the Python objective releasing the GIL (e.g. NumPy/SciPy-backed) or on using a native Rust `Problem`; a pure-Python objective still serializes on the GIL.
+
+### Changed
+
+- `auto.py`'s per-algorithm parameters (previously hand-duplicated across `__init__`, `get_params`, `set_params`, `_filter_params`, `_create_algorithm`, and `parameter_mapping`) now come from one `_ALGORITHM_PARAM_SPECS` registry. `parameter_mapping()` and `parameter_help()` are also now accurate for every mode as a side effect (several modes previously omitted a real parameter or mapped it to the wrong backend keyword — see `TODO.md` Step 5 for the specifics).
+
+### Fixed
+
+- `AntColony`, `ParticleSwarm`, and `BeeColony` (the three earliest algorithms) never tracked a real `history`/`population` internally, so their pyo3 bindings faked `history_`/`population_` from just the single final best solution (a length-1 vector) instead of real per-iteration progress and the actual final swarm/colony — unlike every algorithm added later (GWO, FA, SA, CS, BA, GSO, BFO, DE, CMA-ES), which already recorded these properly. `convergence_rate_score()`/`diversity_score()` therefore silently returned `0.0` for these three modes regardless of how the run actually went. Added real `history: Vec<f64>` and `population: Vec<Vec<f64>>` fields to all three Rust structs, populated per iteration and from the final swarm/colony, and wired them into the bindings. Verified end-to-end from Python (`score_history_`/`population_` now have the expected length for all three modes) and with new Rust regression tests. Found while reviewing `docs/QA.md`'s known-issues notes; its ACO and PSO findings held up under direct verification against source (and the same defect turned out to also affect ABC, which the notes didn't mention), but its BinaryPSO probe-point claim did not — the objective there is probed at `0.0`, a value it will genuinely see during binary optimization, which is a more representative probe than a continuous-style `0.5` midpoint it will never see, so that one was left as-is.
+- A GIL deadlock introduced during development of the rayon parallelization above: rayon worker threads re-enter Python via `Python::with_gil` to call the user's objective, which deadlocks if the orchestrating thread is still holding the GIL while blocked waiting on those workers. Fixed by releasing the GIL (`py.allow_threads`) around each affected optimizer's `fit()` call in the pyo3 bindings. Caught via the full `pytest` suite hanging (the pure-Rust `cargo test` suite doesn't exercise the GIL and passed throughout).
+
 ## 0.3.0
 
 ### Fixed

@@ -12,7 +12,7 @@ pub use advanced::{
     crowding_distance, dominates, hypervolume_2d, non_dominated_sort, MopsoOptimizer,
     Nsga2Optimizer, ParetoPoint, PermutationGeneticOptimizer,
 };
-pub use base::{OptimizationError, Optimizer};
+pub use base::{MultiObjectiveOptimizer, OptimizationError, Optimizer};
 pub use continuous::{
     two_opt, BacterialForagingOptimizer, BatAlgorithm, CmaEsOptimizer, CuckooSearch,
     DifferentialEvolution, FireflyOptimizer, GlowwormOptimizer, GreyWolfOptimizer,

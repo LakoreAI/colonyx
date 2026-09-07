@@ -1,4 +1,4 @@
-use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
+use crate::algorithms::base::{evaluate_population, make_rng, OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -170,7 +170,7 @@ impl Optimizer for GreyWolfOptimizer {
         }
         let mut wolves: Vec<Vec<f64>> =
             (0..self.n_wolves).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
-        let mut scores: Vec<f64> = wolves.iter().map(|wolf| problem.evaluate(wolf)).collect();
+        let mut scores: Vec<f64> = evaluate_population(problem, &wolves);
 
         let best_index = scores
             .iter()
@@ -315,7 +315,7 @@ impl Optimizer for FireflyOptimizer {
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
         let mut scores: Vec<f64> =
-            fireflies.iter().map(|firefly| problem.evaluate(firefly)).collect();
+            evaluate_population(problem, &fireflies);
 
         let best_index = scores
             .iter()
@@ -554,7 +554,7 @@ impl Optimizer for CuckooSearch {
         }
         let mut nests: Vec<Vec<f64>> =
             (0..self.n_nests).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
-        let mut scores: Vec<f64> = nests.iter().map(|nest| problem.evaluate(nest)).collect();
+        let mut scores: Vec<f64> = evaluate_population(problem, &nests);
 
         let best_index = scores
             .iter()
@@ -705,7 +705,7 @@ impl Optimizer for BatAlgorithm {
         let mut velocities = vec![vec![0.0; dimension]; self.n_bats];
         let mut frequencies = vec![0.0; self.n_bats];
         let mut scores: Vec<f64> =
-            positions.iter().map(|position| problem.evaluate(position)).collect();
+            evaluate_population(problem, &positions);
         let mut loudness = vec![self.loudness; self.n_bats];
         let initial_pulse_rate = self.pulse_rate;
         let mut pulse = vec![self.pulse_rate; self.n_bats];
@@ -848,7 +848,7 @@ impl Optimizer for GlowwormOptimizer {
         let mut worms: Vec<Vec<f64>> =
             (0..self.n_worms).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
         let mut luciferin = vec![1.0; self.n_worms];
-        let mut scores: Vec<f64> = worms.iter().map(|worm| problem.evaluate(worm)).collect();
+        let mut scores: Vec<f64> = evaluate_population(problem, &worms);
 
         let best_index = scores
             .iter()
@@ -1002,7 +1002,7 @@ impl Optimizer for BacterialForagingOptimizer {
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
         let mut scores: Vec<f64> =
-            bacteria.iter().map(|bacterium| problem.evaluate(bacterium)).collect();
+            evaluate_population(problem, &bacteria);
 
         let best_index = scores
             .iter()
@@ -1156,7 +1156,7 @@ impl Optimizer for DifferentialEvolution {
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
         let mut scores: Vec<f64> =
-            population.iter().map(|individual| problem.evaluate(individual)).collect();
+            evaluate_population(problem, &population);
 
         let best_index = scores
             .iter()
@@ -1315,27 +1315,34 @@ impl Optimizer for CmaEsOptimizer {
         let mut best_score = problem.evaluate(&best_position);
 
         for _ in 0..self.n_iterations {
-            let mut population = Vec::with_capacity(self.n_individuals);
-            let mut scores = Vec::with_capacity(self.n_individuals);
-
-            for _ in 0..self.n_individuals {
-                let mut candidate = vec![0.0; dimension];
-                for dimension_index in 0..dimension {
-                    let deviation =
-                        self.sigma * covariance[dimension_index].sqrt() * standard_normal(&mut rng);
-                    candidate[dimension_index] = clamp_value(
-                        mean[dimension_index] + deviation,
-                        self.bounds.lower[dimension_index],
-                        self.bounds.upper[dimension_index],
-                    );
-                }
-                let score = problem.evaluate(&candidate);
+            // Sample the whole generation first (sequential: draws from `rng`
+            // and must stay reproducible), then evaluate every candidate in
+            // one independent batch. Unlike DE/PSO/ABC's steady-state loops,
+            // canonical CMA-ES never lets one candidate's fitness influence
+            // another's within the same generation, so batching the
+            // evaluation in parallel changes nothing about the result.
+            let population: Vec<Vec<f64>> = (0..self.n_individuals)
+                .map(|_| {
+                    let mut candidate = vec![0.0; dimension];
+                    for dimension_index in 0..dimension {
+                        let deviation = self.sigma
+                            * covariance[dimension_index].sqrt()
+                            * standard_normal(&mut rng);
+                        candidate[dimension_index] = clamp_value(
+                            mean[dimension_index] + deviation,
+                            self.bounds.lower[dimension_index],
+                            self.bounds.upper[dimension_index],
+                        );
+                    }
+                    candidate
+                })
+                .collect();
+            let scores = evaluate_population(problem, &population);
+            for (index, &score) in scores.iter().enumerate() {
                 if score < best_score {
                     best_score = score;
-                    best_position = candidate.clone();
+                    best_position = population[index].clone();
                 }
-                population.push(candidate);
-                scores.push(score);
             }
 
             let mut ranking: Vec<usize> = (0..self.n_individuals).collect();

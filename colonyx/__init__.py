@@ -45,10 +45,14 @@ from .benchmarks import (
     ackley,
     benchmark_suite,
     griewank,
+    levy,
+    load_tsplib,
+    michalewicz,
     rastrigin,
     rosenbrock,
     schwefel,
     sphere,
+    zakharov,
 )
 from .datasets import list_benchmark_problems, load_benchmark_problem
 from .metrics import (
@@ -69,6 +73,7 @@ from .metrics import (
     paired_significance_test,
     robustness_analysis,
     success_rate,
+    wilcoxon_signed_rank_test,
 )
 from .utils import check_bounds, check_objective_function, check_optimization_problem
 
@@ -113,6 +118,10 @@ __all__ = [
     "ackley",
     "griewank",
     "schwefel",
+    "levy",
+    "zakharov",
+    "michalewicz",
+    "load_tsplib",
     "BenchmarkResult",
     "BacterialForagingOptimizer",
     "DifferentialEvolution",
@@ -123,6 +132,7 @@ __all__ = [
     "distribution_analysis",
     "robustness_analysis",
     "paired_significance_test",
+    "wilcoxon_signed_rank_test",
     "aggregate_runs",
     "ProfilingResult",
     "profile_callable",

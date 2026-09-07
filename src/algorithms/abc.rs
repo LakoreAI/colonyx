@@ -1,4 +1,4 @@
-use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
+use crate::algorithms::base::{evaluate_population, make_rng, OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
 use rand::rngs::StdRng;
 use rand::Rng;
@@ -19,11 +19,25 @@ pub struct BeeColony {
     bounds: Bounds,
     random_seed: Option<u64>,
     best_solution: Option<Solution>,
+
+    /// Final food-source positions after `fit()`, for diversity/spread metrics.
+    pub population: Vec<Vec<f64>>,
+    /// Best-so-far fitness after each iteration, for convergence tracking.
+    pub history: Vec<f64>,
 }
 
 impl BeeColony {
     pub fn new(n_bees: usize, n_iterations: usize, limit: usize, bounds: Bounds) -> Self {
-        Self { n_bees, n_iterations, limit, bounds, random_seed: None, best_solution: None }
+        Self {
+            n_bees,
+            n_iterations,
+            limit,
+            bounds,
+            random_seed: None,
+            best_solution: None,
+            population: Vec::new(),
+            history: Vec::new(),
+        }
     }
 
     /// Set the RNG seed for reproducible runs. `None` draws from entropy.
@@ -97,6 +111,8 @@ impl Optimizer for BeeColony {
     type Solution = Solution;
 
     fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError> {
+        self.population.clear();
+        self.history.clear();
         let dim = self.bounds.lower.len();
         if dim == 0 {
             return Err(OptimizationError::InvalidInput(
@@ -120,7 +136,7 @@ impl Optimizer for BeeColony {
         // Initialize food sources.
         let mut sources: Vec<Vec<f64>> =
             (0..sn).map(|_| self.random_source(&ranges, &mut rng)).collect();
-        let mut objective: Vec<f64> = sources.iter().map(|s| problem.evaluate(s)).collect();
+        let mut objective: Vec<f64> = evaluate_population(problem, &sources);
         let mut trials = vec![0usize; sn];
 
         let mut best_index = 0;
@@ -176,8 +192,10 @@ impl Optimizer for BeeColony {
                     best_position.copy_from_slice(&sources[i]);
                 }
             }
+            self.history.push(best_objective);
         }
 
+        self.population = sources;
         self.best_solution = Some(Solution::with_fitness(best_position, best_objective));
         Ok(())
     }
@@ -237,6 +255,24 @@ mod tests {
 
         let score = abc.score().unwrap();
         assert!(score < 1e-2, "expected near-zero minimum, got {score}");
+    }
+
+    #[test]
+    fn history_and_population_reflect_the_whole_run_not_just_the_best_source() {
+        // Regression test: these fields used to not exist, so bindings.rs
+        // only ever exposed a length-1 history/population from the final
+        // best food source instead of the actual run.
+        let bounds = Bounds::uniform(2, -5.0, 5.0).unwrap();
+        let mut abc = BeeColony::new(20, 15, 10, bounds);
+        abc.set_random_seed(Some(9));
+        abc.fit(&sphere(2)).unwrap();
+
+        assert_eq!(abc.history.len(), 15);
+        for window in abc.history.windows(2) {
+            assert!(window[1] <= window[0]);
+        }
+        assert_eq!(abc.population.len(), 10);
+        assert!(abc.population.iter().all(|source| source.len() == 2));
     }
 
     #[test]

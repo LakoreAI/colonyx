@@ -15,6 +15,7 @@ from colonyx import (
     profile_optimization_run,
     robustness_analysis,
     success_rate,
+    wilcoxon_signed_rank_test,
 )
 from colonyx import metrics as metrics_module
 
@@ -62,6 +63,31 @@ def test_autocolony_reports_metrics_for_multiple_runs():
     assert "success_rate" in performance
     assert "mean" in summary
     assert "robustness" in report
+
+
+def test_wilcoxon_signed_rank_test_returns_statistic_and_pvalue():
+    scores_a = [1.0, 1.2, 0.9, 1.5, 0.8]
+    scores_b = [1.4, 1.1, 1.0, 1.6, 0.7]
+
+    result = wilcoxon_signed_rank_test(scores_a, scores_b)
+
+    assert set(result) == {"statistic", "pvalue"}
+    assert isinstance(result["statistic"], float)
+    assert isinstance(result["pvalue"], float)
+    assert 0.0 <= result["pvalue"] <= 1.0
+
+
+def test_wilcoxon_signed_rank_test_rejects_mismatched_or_empty_input():
+    with pytest.raises(ValueError):
+        wilcoxon_signed_rank_test([1.0, 2.0], [1.0])
+    with pytest.raises(ValueError):
+        wilcoxon_signed_rank_test([], [])
+
+
+def test_wilcoxon_signed_rank_test_requires_scipy(monkeypatch):
+    monkeypatch.setattr(metrics_module, "scipy_stats", None)
+    with pytest.raises(ImportError):
+        wilcoxon_signed_rank_test([1.0, 2.0, 3.0], [1.1, 1.9, 3.2])
 
 
 def test_paired_significance_test_requires_scipy(monkeypatch):

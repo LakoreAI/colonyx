@@ -132,15 +132,24 @@ incremental steps so each step leaves the project in a strictly better state.
 
 ## Step 5 — Fix Python `auto.py` Architecture
 
-- [ ] **Replace 8× parameter enumeration with a registry dict** (`auto.py`).
-  `__init__`, `get_params`, `set_params`, `_filter_params`, `_create_algorithm`,
-  `parameter_mapping`, `suggest_parameters`, and `default_param_grids` each
-  repeat the same ~50 params.  A single `_ALGORITHM_PARAMS` dict per algorithm
-  would be the source of truth. Left undone: this is the single biggest
-  remaining item in this file, and it touches the sklearn-compatibility-
-  critical `get_params`/`set_params` contract for every one of the 12 modes —
-  worth doing as its own focused, carefully-tested pass rather than folded
-  into a broader cleanup.
+- [x] **Replace 8× parameter enumeration with a registry dict** (`auto.py`).
+  Added `_ALGORITHM_PARAM_SPECS` (a single `mode -> {attr: (default,
+  backend_kwarg, cast)}` dict) plus `_BACKEND_CLASSES` and derived `_DEFAULTS`/
+  `_ALL_PARAM_NAMES`. `get_params`, `set_params`, `_filter_params`,
+  `_create_algorithm`, and `parameter_mapping` are now all generated from this
+  registry instead of hand-duplicating the ~50 params. `__init__` stays an
+  explicit, `**kwargs`-free signature (a hard scikit-learn `clone()`/
+  `get_params()` requirement) but now sources its keyword defaults from
+  `_DEFAULTS` so it can't drift from the registry. `parameter_mapping()` and
+  `parameter_help()` also became more *accurate* as a side effect of having
+  one source of truth: several modes (aco's `use_two_opt`, gso's
+  `neighborhood_radius`, bfo's `bfo_step_scale`, and cs/ba/gso/bfo's backend
+  kwarg names) were previously omitted or mapped to the wrong backend name in
+  the hand-written versions. `suggest_parameters` and
+  `default_param_grids`/`default_param_distributions` were left as bespoke
+  code since they encode curated tuning judgment, not parameter enumeration.
+  All 153 Python tests (including the sklearn-compat suite exercising
+  `get_params`/`set_params`/`GridSearchCV`) still pass.
 - [x] **`_detect_problem_type` dead code removed** — it duplicated
   `recommend_algorithm()`'s classification but was never actually called from
   `fit()` (which calls `recommend_algorithm()` directly); deleted rather than
@@ -182,15 +191,30 @@ incremental steps so each step leaves the project in a strictly better state.
 
 ## Step 7 — Fix Multi-Objective Trait Design
 
-- [ ] **`BinaryPSO`, `NSGA-II`, `MOPSO` do not implement `Optimizer`** — they
-  have `fit_with_objective()` instead of `fit(&mut self, &dyn Problem)`, so they
-  cannot be used through the uniform trait.  Either:
-  - Extend the `Optimizer` trait to support multi-objective (breaking change), or
-  - Keep the separate method but add a uniform dispatch layer in bindings.
-  Left undone: real architectural question, not a bug — nothing in the
-  codebase currently needs to hold these polymorphically as `dyn Optimizer`,
-  and the fix requires either a breaking trait change or a new dispatch
-  layer, both bigger than this pass's scope.
+- [x] **`BinaryPSO`, `NSGA-II`, `MOPSO` do not implement `Optimizer`** — resolved
+  via a dispatch-layer approach (the "keep the separate method" option above),
+  since NSGA-II/MOPSO's vector-valued objectives genuinely can't fit the
+  existing scalar `Optimizer::fit(&dyn Problem) -> Option<f64>` shape without
+  a breaking change:
+  - `BinaryPSO` *is* single-objective (`fit_with_objective(objective, dims)`
+    over a scalar `f(&[f64]) -> f64`), so it now directly implements the
+    existing `Optimizer` trait — `fit()` just calls `fit_with_objective`
+    against `problem.evaluate`/`problem.dimensions()`. `fit_with_objective`
+    itself is unchanged and still callable directly.
+  - Added a new `MultiObjectiveProblem` trait (`core/problem.rs`, mirroring
+    `Problem` but returning `Vec<f64>`) and a `MultiObjectiveOptimizer` trait
+    (`algorithms/base.rs`: `fit(&dyn MultiObjectiveProblem) -> Result<...>` +
+    `pareto_front() -> Vec<ParetoPoint>`). `Nsga2Optimizer` and
+    `MopsoOptimizer` both implement it (delegating to their existing
+    `fit_with_objective`, also left unchanged/still callable directly).
+  - New Rust tests demonstrate the actual payoff: `binary_pso_is_usable_as_a_dyn_optimizer`
+    holds a `BinaryParticleSwarm` as `Box<dyn Optimizer<Solution = Solution>>`,
+    and `nsga2_and_mopso_are_both_usable_as_dyn_multi_objective_optimizers`
+    holds both `Nsga2Optimizer` and `MopsoOptimizer` in one
+    `Vec<Box<dyn MultiObjectiveOptimizer>>` and fits both through the trait.
+  - Also added `MultiObjectiveContinuousProblem` (a closure-backed
+    `MultiObjectiveProblem`, mirroring `ContinuousProblem`) for symmetry and
+    for use in the new tests. 78 Rust tests pass (was 76).
 - [x] **Add `predict()`/`score()` to MOPSO** — already present, just at the
   pyo3 binding layer (`PyMopsoOptimizer::predict()`/`score()` in
   `bindings.rs`) rather than on the inner `MopsoOptimizer` Rust struct
@@ -265,6 +289,92 @@ incremental steps so each step leaves the project in a strictly better state.
   ~3e-8, both ~1.27e-5 away from the claimed `minimum=0.0` regardless (the
   418.9829 constant in the formula is itself a rounded literature value).
   Not worth changing.
-- [ ] **`paired_significance_test` only supports parametric t-test** — add
-  Wilcoxon signed-rank for non-normal benchmark scores. A real feature
-  addition, not a bug; left for a dedicated pass.
+- [x] **`paired_significance_test` only supports parametric t-test** — added
+  `wilcoxon_signed_rank_test(scores_a, scores_b)` alongside it in `metrics.py`,
+  following the same validation/scipy-required pattern (raises `ImportError`
+  rather than fabricating a p-value when scipy is absent). Exported from
+  `colonyx/__init__.py`; covered by new tests in `tests/test_metrics.py`.
+
+## Step 10 — Rayon-Parallelized Fitness Evaluation
+
+> Added a `rayon`-backed `evaluate_population()` helper (`algorithms/base.rs`)
+> and applied it wherever a batch of candidate evaluations is genuinely
+> independent within an algorithm's own semantics — never as a blanket
+> "parallelize every evaluate() call" pass, since several algorithms
+> (DE, ABC's employed/onlooker phases) deliberately consume each candidate's
+> fitness before evaluating the next one in the same generation, and
+> parallelizing those would silently change their behavior, not just their
+> speed.
+
+- [x] **Population-initialization evaluation parallelized** for PSO, ABC, GWO,
+  FA, CS, BA, GSO, BFO, and DE — each generates its initial candidates
+  sequentially (still consuming the seeded RNG in the original order for
+  reproducibility) and then evaluates that batch's fitness via
+  `evaluate_population()` instead of a sequential `.iter().map(evaluate)`.
+- [x] **CMA-ES per-generation evaluation parallelized** — the highest-value
+  target: canonical CMA-ES already samples a whole generation before ranking
+  it (no candidate depends on another's fitness within the same generation),
+  so this is a real, zero-behavior-change speedup rather than just the
+  init-time win the other algorithms get. Verified via existing
+  `cmaes_reproducible_with_seed` and `cmaes_minimizes_sphere_near_origin`
+  Rust tests (unchanged, still pass) plus a new
+  `evaluate_population_preserves_order_and_matches_sequential_evaluate` test.
+- [x] **Fixed a GIL deadlock this introduced** — `evaluate_population`'s rayon
+  worker threads call back into the Python objective via
+  `Python::with_gil` (see `bindings::make_objective`); if the orchestrating
+  thread still holds the GIL while blocked in `.collect()` waiting on those
+  workers, every worker blocks trying to acquire a GIL the blocked thread
+  holds, and the process hangs. Caught this via the full `pytest` suite
+  (which exercises the real PyO3 path) hanging indefinitely, even though the
+  pure-Rust `cargo test` suite passed cleanly (it never touches the GIL).
+  Fixed by wrapping each affected `optimizer.fit(&problem)` pyo3 binding call
+  in `py.allow_threads(|| ...)`, releasing the GIL for the whole optimization
+  run so worker threads can acquire it individually.
+- **Note on real-world speedup**: parallel evaluation only pays off when the
+  Python objective itself releases the GIL while it runs (e.g. it spends its
+  time inside NumPy/SciPy/C-extension code) — a pure-Python objective
+  function will simply serialize on the GIL again across threads. The
+  meaningful, always-real win is for CMA-ES/etc. driven by a Rust-native
+  `Problem` (no Python in the loop at all), and for Python objectives that
+  are themselves vectorized/C-backed.
+- [ ] **DE/ABC steady-state loops are not parallelized** — deliberately left
+  sequential (see note above); parallelizing them would require switching to
+  a different, non-steady-state generational variant of those algorithms,
+  which is an algorithm-design change, not a performance one.
+
+## Step 11 — Fix Missing History/Population on the Earliest Algorithms
+
+> Found while cross-checking `docs/QA.md`'s "Known Issues" notes against
+> current source rather than trusting them at face value.
+
+- [x] **`AntColony`, `ParticleSwarm`, `BeeColony` faked `history_`/`population_`
+  from the single final best solution** — unlike every algorithm added later
+  (GWO, FA, SA, CS, BA, GSO, BFO, DE, CMA-ES all have real `pub history`/
+  `pub population` fields populated during `fit()`), these three original
+  algorithms never tracked either, so their pyo3 bindings did
+  `self.history_ = self.best_score.into_iter().collect()` — a length-1
+  vector — instead of real per-iteration progress, and likewise wrapped just
+  the best solution as a fake length-1 "population". `convergence_rate_score()`/
+  `diversity_score()` therefore silently returned `0.0` for `mode="aco"`,
+  `"pso"`, and `"abc"` regardless of the actual run. Added real `history`/
+  `population` fields to `AntColony`, `ParticleSwarm`, and `BeeColony`,
+  wired into the bindings, verified from Python (`score_history_`/
+  `population_` now have the expected lengths) and with new Rust tests.
+  `docs/QA.md`'s notes caught the ACO and PSO instances but not ABC's
+  identical bug — found by pattern-matching the fix across all three
+  earliest-added algorithms rather than only the two flagged.
+- [~] **`docs/QA.md`'s BinaryPSO probe-point claim** — not a bug. It flagged
+  `make_objective(py, objective, &vec![0.0; dimensions])` (origin) as
+  inconsistent with continuous algorithms' `&bounds.midpoint()` probe. But
+  BinaryPSO has no continuous bounds; its objective only ever sees `0.0`/`1.0`
+  per dimension, so probing at `0.0` uses a value the objective will actually
+  encounter, whereas a `0.5`-style "midpoint" would probe with a value real
+  runs never produce. Left unchanged.
+- [~] **`docs/QA.md`'s BFO history-granularity claim** — evaluated, not
+  changed. It noted BFO's `self.history.push(best_score)` fires once per
+  reproduction round rather than once per chemotactic step. That's already
+  `n_iterations * n_reproduction_steps` entries (finer-grained than every
+  other algorithm's once-per-outer-iteration), and pushing once per
+  chemotactic step on top of that would multiply history length by
+  `n_chemotactic_steps` for no clear benefit — a granularity/design choice,
+  not a bug.

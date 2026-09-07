@@ -1,4 +1,4 @@
-use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
+use crate::algorithms::base::{evaluate_population, make_rng, OptimizationError, Optimizer};
 use crate::core::{Bounds, Problem, Solution};
 use rand::Rng;
 use std::collections::HashMap;
@@ -21,6 +21,11 @@ pub struct ParticleSwarm {
     bounds: Bounds,
     random_seed: Option<u64>,
     best_solution: Option<Solution>,
+
+    /// Final particle positions after `fit()`, for diversity/spread metrics.
+    pub population: Vec<Vec<f64>>,
+    /// Best-so-far fitness after each iteration, for convergence tracking.
+    pub history: Vec<f64>,
 }
 
 impl ParticleSwarm {
@@ -41,6 +46,8 @@ impl ParticleSwarm {
             bounds,
             random_seed: None,
             best_solution: None,
+            population: Vec::new(),
+            history: Vec::new(),
         }
     }
 
@@ -54,6 +61,8 @@ impl Optimizer for ParticleSwarm {
     type Solution = Solution;
 
     fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError> {
+        self.population.clear();
+        self.history.clear();
         let dim = self.bounds.lower.len();
         if dim == 0 {
             return Err(OptimizationError::InvalidInput(
@@ -80,14 +89,19 @@ impl Optimizer for ParticleSwarm {
         let mut global_best = vec![0.0; dim];
         let mut global_best_fitness = f64::INFINITY;
 
-        // Initialize the swarm uniformly at random inside the bounds.
+        // Initialize the swarm uniformly at random inside the bounds. Position
+        // generation must stay sequential (it consumes `rng`), but the
+        // resulting candidates are independent, so their fitness is
+        // evaluated as one parallel batch.
         for i in 0..self.n_particles {
             for d in 0..dim {
                 positions[i][d] = self.bounds.lower[d] + rng.gen::<f64>() * ranges[d];
                 velocities[i][d] = (rng.gen::<f64>() * 2.0 - 1.0) * ranges[d] * INIT_VELOCITY_SCALE;
             }
-
-            let fitness = problem.evaluate(&positions[i]);
+        }
+        let initial_fitness = evaluate_population(problem, &positions);
+        for i in 0..self.n_particles {
+            let fitness = initial_fitness[i];
             personal_best[i].copy_from_slice(&positions[i]);
             personal_best_fitness[i] = fitness;
 
@@ -122,8 +136,10 @@ impl Optimizer for ParticleSwarm {
                     }
                 }
             }
+            self.history.push(global_best_fitness);
         }
 
+        self.population = positions;
         self.best_solution = Some(Solution::with_fitness(global_best, global_best_fitness));
         Ok(())
     }
@@ -170,6 +186,24 @@ mod tests {
 
         let score = pso.score().unwrap();
         assert!(score < 1e-3, "expected near-zero minimum, got {score}");
+    }
+
+    #[test]
+    fn history_and_population_reflect_the_whole_run_not_just_the_best_particle() {
+        // Regression test: these fields used to not exist, so bindings.rs
+        // only ever exposed a length-1 history/population from the final
+        // best particle instead of the actual run.
+        let bounds = Bounds::uniform(2, -5.0, 5.0).unwrap();
+        let mut pso = ParticleSwarm::new(12, 20, 0.7, 1.5, 1.5, bounds);
+        pso.set_random_seed(Some(9));
+        pso.fit(&sphere(2)).unwrap();
+
+        assert_eq!(pso.history.len(), 20);
+        for window in pso.history.windows(2) {
+            assert!(window[1] <= window[0]);
+        }
+        assert_eq!(pso.population.len(), 12);
+        assert!(pso.population.iter().all(|position| position.len() == 2));
     }
 
     #[test]

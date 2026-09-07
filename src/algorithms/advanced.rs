@@ -1,6 +1,6 @@
-use crate::algorithms::base::{make_rng, OptimizationError, Optimizer};
+use crate::algorithms::base::{make_rng, MultiObjectiveOptimizer, OptimizationError, Optimizer};
 use crate::algorithms::continuous::two_opt;
-use crate::core::{Bounds, Problem, Solution};
+use crate::core::{Bounds, MultiObjectiveProblem, Problem, Solution};
 use rand::rngs::StdRng;
 use rand::{seq::SliceRandom, Rng};
 use std::collections::HashMap;
@@ -445,6 +445,36 @@ impl BinaryParticleSwarm {
     }
 }
 
+impl Optimizer for BinaryParticleSwarm {
+    type Solution = Solution;
+
+    /// Adapts `fit_with_objective` to the uniform single-objective
+    /// `Optimizer` trait, so `BinaryParticleSwarm` can be held as
+    /// `Box<dyn Optimizer<Solution = Solution>>` alongside the continuous
+    /// algorithms instead of needing a special case.
+    fn fit(&mut self, problem: &dyn Problem) -> Result<(), OptimizationError> {
+        self.fit_with_objective(&|x: &[f64]| problem.evaluate(x), problem.dimensions())
+    }
+
+    fn predict(&self) -> Option<Self::Solution> {
+        self.best_solution.clone()
+    }
+
+    fn score(&self) -> Option<f64> {
+        self.best_solution.as_ref().and_then(|s| s.fitness)
+    }
+
+    fn get_params(&self) -> HashMap<String, f64> {
+        let mut params = HashMap::new();
+        params.insert("n_particles".to_string(), self.n_particles as f64);
+        params.insert("n_iterations".to_string(), self.n_iterations as f64);
+        params.insert("w".to_string(), self.w);
+        params.insert("c1".to_string(), self.c1);
+        params.insert("c2".to_string(), self.c2);
+        params
+    }
+}
+
 fn initialize_continuous_population(
     rng: &mut StdRng,
     bounds: &Bounds,
@@ -663,6 +693,16 @@ impl Nsga2Optimizer {
     }
 }
 
+impl MultiObjectiveOptimizer for Nsga2Optimizer {
+    fn fit(&mut self, problem: &dyn MultiObjectiveProblem) -> Result<(), OptimizationError> {
+        self.fit_with_objective(&|x: &[f64]| problem.evaluate(x))
+    }
+
+    fn pareto_front(&self) -> Vec<ParetoPoint> {
+        self.best_front.clone()
+    }
+}
+
 #[derive(Debug)]
 pub struct MopsoOptimizer {
     pub n_particles: usize,
@@ -754,6 +794,16 @@ impl MopsoOptimizer {
 
         self.population = positions;
         Ok(())
+    }
+}
+
+impl MultiObjectiveOptimizer for MopsoOptimizer {
+    fn fit(&mut self, problem: &dyn MultiObjectiveProblem) -> Result<(), OptimizationError> {
+        self.fit_with_objective(&|x: &[f64]| problem.evaluate(x))
+    }
+
+    fn pareto_front(&self) -> Vec<ParetoPoint> {
+        self.archive.clone()
     }
 }
 
@@ -938,6 +988,52 @@ mod tests {
         ];
         let vol = hypervolume_2d(&points, [3.0, 3.0]);
         assert!(vol > 0.0);
+    }
+
+    // --- Optimizer / MultiObjectiveOptimizer trait unification ---
+
+    #[test]
+    fn binary_pso_is_usable_as_a_dyn_optimizer() {
+        // onemax: maximize sum -> minimize (dim - sum), driven purely through
+        // the standard `Optimizer` trait object instead of `fit_with_objective`.
+        let problem = crate::core::ContinuousProblem {
+            name: "onemax".to_string(),
+            dimensions: 5,
+            objective_function: Box::new(|x: &[f64]| {
+                let sum: f64 = x.iter().sum();
+                x.len() as f64 - sum
+            }),
+        };
+        let mut optimizer: Box<dyn Optimizer<Solution = Solution>> =
+            Box::new(BinaryParticleSwarm::new(20, 50, 0.7, 1.5, 1.5));
+        optimizer.fit(&problem).unwrap();
+        let sum: f64 = optimizer.predict().unwrap().variables.iter().sum();
+        assert!(sum > 4.0);
+        assert!(optimizer.score().unwrap() < 1.0);
+    }
+
+    #[test]
+    fn nsga2_and_mopso_are_both_usable_as_dyn_multi_objective_optimizers() {
+        let bounds = Bounds::uniform(1, -2.0, 3.0).unwrap();
+        let problem = crate::core::MultiObjectiveContinuousProblem {
+            name: "biobjective".to_string(),
+            dimensions: 1,
+            objective_function: Box::new(|x: &[f64]| vec![x[0], (x[0] - 1.0).powi(2)]),
+        };
+
+        let mut nsga2 = Nsga2Optimizer::new(30, 30, 0.8, 0.2, 0.5, 30, bounds.clone());
+        nsga2.set_random_seed(Some(42));
+        let mut mopso = MopsoOptimizer::new(20, 30, 0.7, 1.5, 1.5, 0.1, 20, bounds);
+        mopso.set_random_seed(Some(42));
+
+        let mut optimizers: Vec<Box<dyn MultiObjectiveOptimizer>> =
+            vec![Box::new(nsga2), Box::new(mopso)];
+        for optimizer in optimizers.iter_mut() {
+            optimizer.fit(&problem).unwrap();
+            let front = optimizer.pareto_front();
+            assert!(!front.is_empty());
+            assert_eq!(front[0].objectives.len(), 2);
+        }
     }
 
     #[test]
