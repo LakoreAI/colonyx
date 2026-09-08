@@ -61,7 +61,7 @@ $$
 
 Deposit sources differ per variant. Let \(D_{\text{all}}\) be "every ant
 deposits \(q/L_k\) on its own tour" and \(D_{\text{elite}}\) be "the
-best-so-far tour additionally deposits \(\text{elitist_weight} \cdot q / L^{*}\)":
+best-so-far tour additionally deposits \(e \cdot q / L^{*}\)", where \(e\) is `elitist_weight`:
 
 $$
 \text{deposit}(\text{variant}) =
@@ -77,6 +77,11 @@ $$
 $$
 \tau_{ij} \leftarrow \min\bigl(\max(\tau_{ij}, \tau_{\min}), \tau_{\max}\bigr)
 $$
+
+<figure markdown>
+![Side-by-side comparison of the four ACO variants: basic has every ant deposit on its own tour, elitist adds an extra amber deposit from the best-so-far tour, acs has only the best-so-far ant deposit while city choice turns greedy with probability q0, and mmas adds a pheromone clamp on top of elitist's deposits](../assets/diagrams/aco-variants.svg)
+<figcaption>Only two things ever change between variants: who deposits pheromone, and how greedily the next city is chosen.</figcaption>
+</figure>
 
 ## Variants
 

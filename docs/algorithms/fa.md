@@ -47,10 +47,10 @@ $$
 \beta(r_{ij}) = \beta_0\, e^{-\gamma r_{ij}^{2}}
 $$
 
-When firefly \(j\) is strictly brighter than firefly \(i\) (lower objective value), \(i\) moves toward \(j\) plus a random-walk term scaled by that dimension's bound range \(\text{range}_d = \text{upper}_d - \text{lower}_d\):
+When firefly \(j\) is strictly brighter than firefly \(i\) (lower objective value), \(i\) moves toward \(j\) plus a random-walk term scaled by that dimension's bound range \(\text{range}_d = \text{upper}_d - \text{lower}_d\), where \(\alpha\) is `fa_alpha`, the randomization step-size factor:
 
 $$
-x_{i,d} \leftarrow x_{i,d} + \beta(r_{ij})\,(x_{j,d} - x_{i,d}) + \text{fa\_alpha}\,(u_d - 0.5)\,\text{range}_d, \qquad u_d \sim U(0,1)
+x_{i,d} \leftarrow x_{i,d} + \beta(r_{ij})\,(x_{j,d} - x_{i,d}) + \alpha\,(u_d - 0.5)\,\text{range}_d, \qquad u_d \sim U(0,1)
 $$
 
 The moved candidate is clamped to `bounds` and kept only if it improves on firefly \(i\)'s current score.

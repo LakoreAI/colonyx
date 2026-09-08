@@ -14,6 +14,11 @@ description: MopsoOptimizer in colonyx — multi-objective particle swarm optimi
 
 Standard PSO relies on a single scalar fitness value to decide two things: which of a particle's own visited positions was best (its personal best), and which position in the whole swarm was best overall (the global best that pulls every particle toward it). Neither concept survives contact with multiple objectives directly, because "best" isn't well-defined when two solutions each win on a different objective. MOPSO keeps PSO's core velocity/position update but replaces both fitness comparisons with Pareto dominance: a candidate replaces a particle's personal best only if it *dominates* it (no worse on every objective, strictly better on at least one — the same relation NSGA-II uses), and instead of one fixed global best, each particle is pulled toward a **leader** sampled from an archive of non-dominated solutions found so far. That archive is itself maintained across iterations, growing as new non-dominated points are found and pruned back to `archive_size` by crowding distance when it overflows. The result is PSO's fast, momentum-driven search behavior redirected toward populating a whole Pareto front instead of homing in on one point.
 
+<figure markdown>
+![Three-step MOPSO loop: draw a random leader from the archive's non-dominated front, update velocity and position toward the personal best and that leader, then keep the new position only if it dominates the personal best and rebuild the archive before repeating](../assets/diagrams/mopso.svg)
+<figcaption>Every particle can follow a different leader on every iteration — there's no single global best pulling the whole swarm to one point.</figcaption>
+</figure>
+
 ## Definition
 
 Multi-Objective Particle Swarm Optimization adapts PSO to vector-valued
@@ -66,10 +71,11 @@ $$
 
 where \(p_i\) is particle \(i\)'s personal best and \(\ell\) is a **leader**
 drawn uniformly at random from the current non-dominated front of the
-archive (not one fixed global best):
+archive (not one fixed global best), using \(\mathrm{ND}(\cdot)\) for the
+non-dominated-set operator (`non_dominated_sort`):
 
 $$
-\ell \sim U\bigl(\text{non_dominated}(\text{archive})\bigr)
+\ell \sim U\bigl(\mathrm{ND}(\text{archive})\bigr)
 $$
 
 Personal best is replaced only under strict Pareto dominance, using the

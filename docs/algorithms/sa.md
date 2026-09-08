@@ -12,6 +12,11 @@ description: How colonyx implements Simulated Annealing (SA) for continuous opti
 
 Simulated Annealing is modeled on annealing in metallurgy: a metal is heated until its atoms can move freely, then cooled slowly, and the slow cooling lets the atoms settle into a low-energy, highly ordered crystalline structure rather than the disordered, higher-energy structure that would result from cooling too quickly. The physical intuition is that at high temperature, atoms have enough energy to escape a locally low-energy arrangement and keep searching for a better (lower-energy) one; as temperature drops, that escape energy shrinks, and the material progressively settles into whatever arrangement it's found.
 
+<figure markdown>
+![Four-step SA loop: propose a random candidate step, accept it via the Metropolis criterion (always if better, sometimes if worse), cool the temperature and update the best-ever solution, then repeat](../assets/diagrams/sa.svg)
+<figcaption>The step size never shrinks — what changes is the temperature-controlled odds of accepting a worse move, which is what lets SA settle down over time.</figcaption>
+</figure>
+
 SA reuses this cooling schedule as a search strategy for continuous optimization. It maintains exactly one current candidate solution (not a population), and at each iteration proposes a randomly perturbed neighbor of that solution. If the neighbor's objective value is better, it's always accepted as the new current solution. If it's worse, it's accepted anyway with a probability that depends on how much worse it is and on a "temperature" parameter that starts high and decreases geometrically every iteration — early in the run, temperature is high, so SA readily accepts worsening moves and can escape a local optimum it would otherwise be stuck in; late in the run, temperature has cooled close to zero, so SA effectively only accepts improving moves and behaves like plain greedy hill-descending. This is the same fundamental trade-off every other algorithm on this site handles with a population and diversity mechanisms, but SA achieves it with a single trajectory and one scalar temperature.
 
 ## How colonyx implements it
@@ -46,10 +51,10 @@ $$
 P(\text{accept}) = \begin{cases} 1 & \Delta \le 0 \\[4pt] \exp\!\left(-\dfrac{\Delta}{T}\right) & \Delta > 0 \end{cases}
 $$
 
-The temperature cools geometrically each iteration:
+The temperature cools geometrically each iteration, where \(\alpha\) is `cooling_rate`:
 
 $$
-T \leftarrow T \cdot \text{cooling\_rate}
+T \leftarrow T \cdot \alpha
 $$
 
 so \(P(\text{accept})\) for a fixed worsening \(\Delta\) shrinks over the run, moving SA from broad exploration toward pure hill-descending.

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" width="1000" height="430" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <defs>
+    <marker id="bpso-step" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 Z" fill="#9ca3af"/>
+    </marker>
+    <marker id="bpso-flow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- panel frames -->
+  <g fill="none" stroke="#9ca3af" stroke-width="1.5">
+    <rect x="20" y="20" width="280" height="300" rx="10"/>
+    <rect x="360" y="20" width="280" height="300" rx="10"/>
+    <rect x="700" y="20" width="280" height="300" rx="10"/>
+  </g>
+
+  <!-- step badges -->
+  <g font-size="13" font-weight="700" fill="#ffffff">
+    <circle cx="40" cy="40" r="12" fill="#0ea5e9"/><text x="40" y="45" text-anchor="middle">1</text>
+    <circle cx="380" cy="40" r="12" fill="#0ea5e9"/><text x="380" y="45" text-anchor="middle">2</text>
+    <circle cx="720" cy="40" r="12" fill="#0ea5e9"/><text x="720" y="45" text-anchor="middle">3</text>
+  </g>
+
+  <!-- inter-panel arrows -->
+  <line x1="300" y1="170" x2="358" y2="170" stroke="#9ca3af" stroke-width="2" marker-end="url(#bpso-step)"/>
+  <line x1="640" y1="170" x2="698" y2="170" stroke="#9ca3af" stroke-width="2" marker-end="url(#bpso-step)"/>
+
+  <!-- ============ Panel 1: init random bit vectors ============ -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="50" y="110" font-size="16" fill="#0ea5e9">1 0 1 1 0</text>
+    <text x="50" y="150" font-size="16" fill="#0ea5e9">0 1 1 0 1</text>
+    <text x="50" y="190" font-size="16" fill="#0ea5e9">1 1 0 0 1</text>
+    <text x="50" y="230" font-size="16" fill="#0ea5e9">0 0 1 1 1</text>
+  </g>
+  <text x="160" y="290" text-anchor="middle" font-size="12.5" fill="#6b7280">Init random bit vectors,</text>
+  <text x="160" y="306" text-anchor="middle" font-size="12.5" fill="#6b7280">evaluate each one</text>
+
+  <!-- ============ Panel 2: sigmoid + bernoulli resample ============ -->
+  <g text-anchor="middle">
+    <text x="500" y="90" font-size="15" fill="#6b7280">v</text>
+    <line x1="500" y1="100" x2="500" y2="122" stroke="#6b7280" stroke-width="2" marker-end="url(#bpso-flow)"/>
+    <text x="500" y="148" font-size="14" fill="#0ea5e9">S(v) = 1 / (1 + e⁻ᵛ)</text>
+    <line x1="500" y1="158" x2="500" y2="180" stroke="#6b7280" stroke-width="2" marker-end="url(#bpso-flow)"/>
+    <text x="500" y="206" font-size="14" fill="#f59e0b">bit ← 1 with prob. S(v)</text>
+  </g>
+  <text x="500" y="290" text-anchor="middle" font-size="12.5" fill="#6b7280">Squash velocity via sigmoid;</text>
+  <text x="500" y="306" text-anchor="middle" font-size="12.5" fill="#6b7280">resample each bit</text>
+
+  <!-- ============ Panel 3: repeat, track best ============ -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <text x="790" y="100" font-size="16" fill="#0ea5e9">0 0 1 1 0</text>
+    <text x="790" y="136" font-size="16" fill="#f59e0b">1 1 1 0 1</text>
+    <text x="790" y="172" font-size="16" fill="#0ea5e9">1 0 0 0 1</text>
+    <text x="790" y="208" font-size="16" fill="#0ea5e9">0 1 1 1 1</text>
+  </g>
+  <circle cx="789" cy="243" r="5" fill="#f59e0b"/>
+  <text x="800" y="248" font-size="11.5" fill="#f59e0b">best-so-far bit vector</text>
+  <text x="840" y="290" text-anchor="middle" font-size="12.5" fill="#6b7280">Repeat; keep the best-scoring</text>
+  <text x="840" y="306" text-anchor="middle" font-size="12.5" fill="#6b7280">bit vector as the global best</text>
+
+  <!-- repeat loop -->
+  <path d="M700 350 C 550 400, 450 400, 300 350" fill="none" stroke="#9ca3af" stroke-width="2" stroke-dasharray="2 5" marker-end="url(#bpso-step)"/>
+  <text x="500" y="415" text-anchor="middle" font-size="13" fill="#6b7280">repeat steps 2 – 3 for n_iterations</text>
+</svg>

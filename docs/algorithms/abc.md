@@ -12,6 +12,11 @@ description: How colonyx implements Artificial Bee Colony (ABC) optimization for
 
 Artificial Bee Colony models how a honeybee colony forages for nectar. A food source's quality corresponds to how much nectar it offers and how easy it is to reach. Employed bees are each assigned to a specific food source and repeatedly search its immediate neighborhood for something better, reporting back what they find. Onlooker bees wait at the hive and choose which food source to visit next based on the information employed bees bring back — better sources get visited (and therefore refined) more often, exactly the way roulette-wheel selection is weighted by fitness. If a food source stops improving no matter how many times it's revisited, the colony eventually gives up on it: the employed bee assigned to it becomes a scout and flies off to discover an entirely new, random food source instead, so the colony never gets permanently stuck refining a source that has already been fully exploited.
 
+<figure markdown>
+![Four-step ABC loop: employed bees exploit their own source, onlooker bees pick sources by roulette wheel, the most-stagnant source is scouted to a fresh random spot, then the best is tracked and the cycle repeats](../assets/diagrams/abc.svg)
+<figcaption>Three distinct bee roles trade off exploitation (employed, onlooker) against exploration (scout) every single iteration.</figcaption>
+</figure>
+
 Translated into an optimizer, a "food source" is simply a candidate solution vector, and its "nectar amount" is how good the objective value at that point is. The employed-bee phase performs local exploitation (each source tries a small, randomized move influenced by another source), the onlooker-bee phase reinforces the phase's own findings by re-visiting the currently-best sources more often, and the scout-bee phase provides exploration by periodically replacing whichever source has gone the longest without improving. This three-phase division of labor is what lets ABC avoid getting trapped on a single stale local optimum while still spending most of its evaluation budget refining the sources that are actually working.
 
 ## How colonyx implements it

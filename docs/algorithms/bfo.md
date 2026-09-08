@@ -10,7 +10,14 @@ description: Bacterial Foraging Optimization in colonyx — a three-loop continu
 
 ## What is Bacterial Foraging Optimization?
 
-*E. coli* bacteria forage by alternating between two movement modes: a "tumble," which reorients them in a random direction, and a "swim," which carries them forward in whatever direction they're currently facing. Over many such steps, bacteria drift toward regions richer in nutrients. Bacterial Foraging Optimization borrows this as chemotaxis — the innermost of its three nested search loops — where each bacterium takes small random steps and keeps any step that improves its own score. Layered on top of chemotaxis is reproduction: periodically, the fitter half of the population is duplicated to replace the weaker half, concentrating the search around currently promising bacteria the way real bacterial populations grow faster where nutrients are abundant. The outermost loop, elimination-dispersal, occasionally kills off a bacterium and drops it at a fresh random position, which is what lets the algorithm escape a region it has over-committed to and keeps the whole population from converging prematurely on one local optimum. This three-level nesting — chemotaxis inside reproduction inside elimination-dispersal — is what sets BFO apart from colonyx's other single-loop swarm algorithms.
+*E. coli* bacteria forage by alternating between two movement modes: a "tumble," which reorients them in a random direction, and a "swim," which carries them forward in whatever direction they're currently facing. Over many such steps, bacteria drift toward regions richer in nutrients. Bacterial Foraging Optimization borrows this as chemotaxis — the innermost of its three nested search loops — where each bacterium takes small random steps and keeps any step that improves its own score.
+
+<figure markdown>
+![BFO's three nested loops: chemotaxis takes a small step and keeps it if it improves, repeated n_chemotactic_steps times before reproduction sorts the population and replicates the fitter half, repeated n_reproduction_steps times before elimination-dispersal randomly resets bacteria with probability p_ed, then the whole nest repeats](../assets/diagrams/bfo.svg)
+<figcaption>The three loops run at three different speeds — chemotaxis many times per reproduction round, reproduction several times per elimination-dispersal round — not as three equal, sequential steps.</figcaption>
+</figure>
+
+Layered on top of chemotaxis is reproduction: periodically, the fitter half of the population is duplicated to replace the weaker half, concentrating the search around currently promising bacteria the way real bacterial populations grow faster where nutrients are abundant. The outermost loop, elimination-dispersal, occasionally kills off a bacterium and drops it at a fresh random position, which is what lets the algorithm escape a region it has over-committed to and keeps the whole population from converging prematurely on one local optimum. This three-level nesting — chemotaxis inside reproduction inside elimination-dispersal — is what sets BFO apart from colonyx's other single-loop swarm algorithms.
 
 ## How colonyx implements it
 
@@ -42,10 +49,10 @@ for elimination_round in 1..n_iterations:               # outermost
             update best if it improves on it
 ```
 
-Each chemotactic step perturbs every dimension independently with uniform noise — not a normalized tumble-direction vector, as some canonical BFO descriptions use — and is accepted greedily if it improves the bacterium's own score:
+Each chemotactic step perturbs every dimension independently with uniform noise — not a normalized tumble-direction vector, as some canonical BFO descriptions use — and is accepted greedily if it improves the bacterium's own score, where \(c\) is `bfo_step_scale`, the chemotactic step size:
 
 $$
-x_{ij} \leftarrow \operatorname{clamp}\!\big(x_{ij} + (2r-1)\cdot \text{bfo\_step\_scale}\cdot \text{range}_j\big), \qquad r \sim U(0,1)
+x_{ij} \leftarrow \operatorname{clamp}\!\big(x_{ij} + (2r-1)\cdot c \cdot \text{range}_j\big), \qquad r \sim U(0,1)
 $$
 
 At the end of each reproduction round, the population is truncated to its fitter half and replicated back to full size:
@@ -54,10 +61,10 @@ $$
 n_{\text{survivors}} = \max\!\left(1, \left\lfloor \frac{n_{\text{bacteria}}}{2} \right\rfloor\right)
 $$
 
-At the end of each elimination-dispersal round, every bacterium is independently reset to a fresh random position with probability:
+At the end of each elimination-dispersal round, every bacterium is independently reset to a fresh random position with probability \(p_{ed}\) (`elimination_probability`):
 
 $$
-P(\text{eliminate } i) = \text{elimination\_probability}
+P(\text{eliminate } i) = p_{ed}
 $$
 
 !!! note "A real correctness detail worth knowing"

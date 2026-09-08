@@ -15,6 +15,11 @@ TSP-style combinatorial search.
 
 A standard genetic algorithm evolves vectors of independent genes, and standard crossover operators (single-point, uniform) assume genes can be swapped freely between parents without breaking validity. That assumption fails for permutation problems like the traveling salesman problem: if a child inherits city 3 from one parent and city 3 again from the other, the resulting "tour" visits city 3 twice and some other city not at all — it isn't a valid permutation anymore. `PermutationGeneticOptimizer` solves this by encoding each individual directly as a permutation of city indices and using crossover/mutation operators designed to preserve validity: order crossover (OX) builds a child that inherits a contiguous slice from one parent and fills the rest from the other parent's relative order, and swap mutation exchanges two positions rather than perturbing a single gene in isolation. The result is a general-purpose evolutionary search over the same TSP-style search space that [Ant Colony Optimization](aco.md) targets, but built on genetic-algorithm mechanics (selection, crossover, mutation, elitism) instead of ACO's pheromone-based collective learning.
 
+<figure markdown>
+![Four-step permutation GA loop: sort the population and carry the best tour forward unchanged, tournament-select two parents and order-crossover a child, swap-mutate the child with some probability, then repeat until the next generation is full](../assets/diagrams/permutation-ga.svg)
+<figcaption>Order crossover and swap mutation exist specifically so every child stays a valid permutation — no repair step is ever needed.</figcaption>
+</figure>
+
 ## Definition
 
 A genetic algorithm whose individuals are permutations (tours) rather than
@@ -82,12 +87,12 @@ A_i & s \le i \le e \\[2pt]
 \end{cases}
 $$
 
-**Swap mutation** applies with probability `mutation_rate`, swapping two
+**Swap mutation** applies with probability \(p_m\) (`mutation_rate`), swapping two
 positions chosen uniformly at random — at most once per child, not
 per-gene:
 
 $$
-\text{swap}(\pi, j, k), \quad j, k \sim U\{0, \dots, n-1\}, \quad \text{applied iff } \text{rand}() \le \text{mutation_rate}
+\text{swap}(\pi, j, k), \quad j, k \sim U\{0, \dots, n-1\}, \quad \text{applied iff } \text{rand}() \le p_m
 $$
 
 The best individual from generation \(t\) is copied unchanged into

@@ -10,7 +10,14 @@ description: Glowworm Swarm Optimization in colonyx — a multimodal continuous 
 
 ## What is Glowworm Swarm Optimization?
 
-Real glowworms glow using a chemical called luciferin, and the brightness of that glow can vary from one individual to the next. GSO turns this into a search strategy: every candidate solution is a "glowworm," and its luciferin value is updated each iteration to track how good its current position is — a lower (better) objective value produces a larger luciferin increment. Each glowworm then looks around a local neighborhood, defined by a `neighborhood_radius`, for other glowworms that are glowing brighter than it is, and takes a step toward the brightest one it can see. Glowworms that see no brighter neighbor within range simply hold their position for that iteration, aside from the luciferin update. This local, radius-bounded attraction is the key structural difference from swarm algorithms like PSO or ABC that pull the whole population toward one shared best position: because a glowworm can only be influenced by what's actually near it, the population can naturally split into several subgroups, each converging on a different local optimum, instead of collapsing onto a single point.
+Real glowworms glow using a chemical called luciferin, and the brightness of that glow can vary from one individual to the next. GSO turns this into a search strategy: every candidate solution is a "glowworm," and its luciferin value is updated each iteration to track how good its current position is — a lower (better) objective value produces a larger luciferin increment.
+
+<figure markdown>
+![Three-step GSO loop: update every glowworm's luciferin from its current fitness, move each glowworm toward the brightest neighbor within its fixed radius (or hold still if none is in range), then repeat](../assets/diagrams/gso.svg)
+<figcaption>Because a glowworm only sees neighbors within a fixed radius, the swarm can split into several subgroups that each converge on a different local optimum at once.</figcaption>
+</figure>
+
+Each glowworm then looks around a local neighborhood, defined by a `neighborhood_radius`, for other glowworms that are glowing brighter than it is, and takes a step toward the brightest one it can see. Glowworms that see no brighter neighbor within range simply hold their position for that iteration, aside from the luciferin update. This local, radius-bounded attraction is the key structural difference from swarm algorithms like PSO or ABC that pull the whole population toward one shared best position: because a glowworm can only be influenced by what's actually near it, the population can naturally split into several subgroups, each converging on a different local optimum, instead of collapsing onto a single point.
 
 ## How colonyx implements it
 
@@ -39,23 +46,23 @@ for iteration in 1..n_iterations:
 ```
 
 $$
-\ell_i \leftarrow (1-\text{luciferin\_decay})\,\ell_i + \frac{\text{luciferin\_enhancement}}{s_i + 1}
+\ell_i \leftarrow (1-\rho)\,\ell_i + \frac{\gamma}{s_i + 1}
 $$
 
-where \(s_i\) is worm \(i\)'s objective value. The neighbor set and target follow directly from luciferin and distance:
+where \(s_i\) is worm \(i\)'s objective value, \(\rho\) is `luciferin_decay`, and \(\gamma\) is `luciferin_enhancement`. The neighbor set and target follow directly from luciferin and distance, within a fixed sensor range \(r_s\) (`neighborhood_radius`):
 
 $$
-N_i = \{\, j \neq i : \ell_j > \ell_i,\ \lVert x_i - x_j \rVert \le \text{neighborhood\_radius} \,\}
+N_i = \{\, j \neq i : \ell_j > \ell_i,\ \lVert x_i - x_j \rVert \le r_s \,\}
 $$
 
 $$
 j^* = \operatorname*{arg\,min}_{j \in N_i} s_j
 $$
 
-\(j^*\) is the single best-scoring neighbor in range in this implementation, rather than a luciferin-proportional probabilistic choice as used in some GSO variants in the literature. The move toward it is accepted greedily, only if it actually improves the glowworm's score:
+\(j^*\) is the single best-scoring neighbor in range in this implementation, rather than a luciferin-proportional probabilistic choice as used in some GSO variants in the literature. The move toward it is accepted greedily, only if it actually improves the glowworm's score, where \(\sigma\) is `gso_step_size`:
 
 $$
-x_i \leftarrow \operatorname{clamp}\!\big(x_i + \text{gso\_step\_size}\,(x_{j^*} - x_i)\big) \ \text{ if it improves } s_i
+x_i \leftarrow \operatorname{clamp}\!\big(x_i + \sigma\,(x_{j^*} - x_i)\big) \ \text{ if it improves } s_i
 $$
 
 ## When to use it (and when not to)

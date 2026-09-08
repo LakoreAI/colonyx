@@ -14,6 +14,11 @@ description: BinaryParticleSwarm in colonyx — a sigmoid-transformed PSO varian
 
 Continuous PSO moves particles through real-valued space by adding a velocity to a position each iteration — that update has no meaning for a bit vector, since "position + velocity" isn't a bit. Kennedy and Eberhart's binary PSO keeps the same velocity equation (inertia, pull toward a particle's own best position, pull toward the swarm's global best) but reinterprets velocity as a *probability signal* rather than a displacement: each per-bit velocity is passed through a sigmoid function to squash it into `(0, 1)`, and the corresponding bit is then resampled as `1` with that probability. A particle whose velocity for a given bit keeps growing positive will, over iterations, almost always set that bit to `1`; a strongly negative velocity drives it toward `0`. This gives you the same momentum and swarm-communication dynamics that make continuous PSO effective, applied to problems where the natural encoding is a bit vector rather than a point in space.
 
+<figure markdown>
+![Three-step Binary PSO loop: initialize random bit vectors, squash each dimension's velocity through a sigmoid to get a flip probability and resample the bit, then repeat while tracking the best-scoring bit vector](../assets/diagrams/binary-pso.svg)
+<figcaption>Velocity is never added to a position here — it only ever sets the odds that a bit flips to 1, which is what makes this PSO's dynamics work on a discrete encoding.</figcaption>
+</figure>
+
 ## Definition
 
 The standard PSO velocity update rule (inertia + attraction to a particle's

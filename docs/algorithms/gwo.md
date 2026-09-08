@@ -12,6 +12,11 @@ description: How colonyx implements the Grey Wolf Optimizer (GWO) for continuous
 
 The Grey Wolf Optimizer is inspired by the social hierarchy and hunting behavior of grey wolf packs. A wolf pack is organized into a strict dominance hierarchy: the alpha (or alpha pair) leads decision-making, the beta supports and may eventually succeed the alpha, the delta wolves defer to alpha and beta but dominate the lowest-ranked omega wolves, and hunting itself proceeds in coordinated stages — the pack tracks and encircles prey, then closes in and attacks once the prey is sufficiently surrounded. GWO borrows the encircling-and-converging structure of this hunt as its search mechanism, treating "prey" as an unknown location that stands in for the true optimum.
 
+<figure markdown>
+![Three-step GWO loop: rank the pack to find alpha, beta, and delta, compute each wolf's pull toward all three, then move to their average as the search radius shrinks and the cycle repeats](../assets/diagrams/gwo.svg)
+<figcaption>Alpha, beta, and delta are just the three best solutions found so far — the hierarchy is recomputed from scratch every iteration, not fixed to specific wolves.</figcaption>
+</figure>
+
 At every iteration, the three best solutions found so far by the population play the role of alpha, beta, and delta — the pack's three best current guesses about where the prey (optimum) actually is. Every other wolf, including alpha/beta/delta themselves, updates its own position by computing where each of the three leaders would tell it to move (a coordinate that circles around that leader at a distance controlled by random coefficients), and then averaging those three leader-guided suggestions. A single scalar `a` starts at 2 and shrinks linearly to 0 over the run, which widens the circling radius early (encouraging broad exploration around the leaders) and tightens it late (encouraging the pack to converge tightly on the leaders' consensus position) — this is GWO's built-in exploration-to-exploitation schedule, and it requires no manual tuning.
 
 ## How colonyx implements it

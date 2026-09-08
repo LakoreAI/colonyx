@@ -76,25 +76,25 @@ nav:
   - Examples & Gallery: examples.md
   - Algorithms:
       - Overview: algorithms.md
-      - ACO: algorithms/aco.md
-      - PSO: algorithms/pso.md
-      - ABC: algorithms/abc.md
-      - GWO: algorithms/gwo.md
-      - FA: algorithms/fa.md
-      - SA: algorithms/sa.md
-      - CS: algorithms/cs.md
-      - BA: algorithms/ba.md
-      - GSO: algorithms/gso.md
-      - BFO: algorithms/bfo.md
-      - DE: algorithms/de.md
-      - CMA-ES: algorithms/cmaes.md
+      - Ant Colony Optimization (ACO): algorithms/aco.md
+      - Particle Swarm Optimization (PSO): algorithms/pso.md
+      - Artificial Bee Colony (ABC): algorithms/abc.md
+      - Grey Wolf Optimizer (GWO): algorithms/gwo.md
+      - Firefly Algorithm (FA): algorithms/fa.md
+      - Simulated Annealing (SA): algorithms/sa.md
+      - Cuckoo Search (CS): algorithms/cs.md
+      - Bat Algorithm (BA): algorithms/ba.md
+      - Glowworm Swarm Optimization (GSO): algorithms/gso.md
+      - Bacterial Foraging Optimization (BFO): algorithms/bfo.md
+      - Differential Evolution (DE): algorithms/de.md
+      - Covariance Matrix Adaptation Evolution Strategy (CMA-ES): algorithms/cmaes.md
       - Advanced:
           - Overview: algorithms/advanced.md
-          - Permutation GA: algorithms/permutation-ga.md
-          - Binary PSO: algorithms/binary-pso.md
-          - NSGA-II: algorithms/nsga2.md
-          - MOPSO: algorithms/mopso.md
-          - ACO Variants: algorithms/aco-variants.md
+          - Permutation Genetic Algorithm (Permutation GA): algorithms/permutation-ga.md
+          - Binary Particle Swarm Optimization (Binary PSO): algorithms/binary-pso.md
+          - Non-dominated Sorting Genetic Algorithm II (NSGA-II): algorithms/nsga2.md
+          - Multi-Objective Particle Swarm Optimization (MOPSO): algorithms/mopso.md
+          - ACO Variants (Elitist, ACS, MMAS): algorithms/aco-variants.md
   - Features:
       - AutoColony API: autocolony-api.md
       - CLI: cli.md

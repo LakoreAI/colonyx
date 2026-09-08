@@ -12,6 +12,11 @@ description: Cuckoo Search in colonyx — a Lévy-flight continuous optimizer in
 
 Cuckoo Search takes its metaphor from the brood parasitism of certain cuckoo species, which lay their eggs in the nests of other host birds rather than raising their own young. In the algorithm, each "nest" is a candidate solution — a point in the search space — and the population of nests evolves generation by generation. Every iteration, each nest is perturbed by a Lévy-flight step: a heavy-tailed random step that produces mostly small moves with occasionally very large ones, which is a useful property for optimization because it lets the search wander broadly through the space without ever fully abandoning fine-grained local refinement. If the perturbed candidate scores better than the nest it came from, it replaces it. Then, mimicking a host bird discovering and rejecting a parasitic egg, a fraction of the worst-scoring nests are abandoned each iteration and replaced with fresh random positions, which keeps the population from stagnating around a single region of the search space.
 
+<figure markdown>
+![Three-step Cuckoo Search loop: each nest takes a Lévy step and keeps it if better, the worst pa-fraction of nests are abandoned to fresh random positions, then the best nest is tracked and the cycle repeats](../assets/diagrams/cs.svg)
+<figcaption>Lévy steps explore broadly while abandonment keeps the population from stagnating around one region — two separate, complementary sources of diversity.</figcaption>
+</figure>
+
 ## How colonyx implements it
 
 colonyx's Cuckoo Search runs as a single loop of Lévy-flight moves followed by abandonment, verified against the Rust implementation in `src/algorithms/continuous.rs`:
@@ -38,15 +43,15 @@ for iteration in 1..n_iterations:
     update best from the current nests
 ```
 
-Each nest's step is drawn from two independent uniform variates per dimension. This is a simplified heavy-tailed step rather than the literature's Lévy flight via Mantegna's algorithm and normal draws, but it produces the same qualitative behavior — mostly small moves, occasionally a large one:
+Each nest's step is drawn from two independent uniform variates per dimension. This is a simplified heavy-tailed step rather than the literature's Lévy flight via Mantegna's algorithm and normal draws, but it produces the same qualitative behavior — mostly small moves, occasionally a large one. \(\lambda\) is `levy_scale` and \(\alpha\) is `cs_alpha`, the overall step-scaling factor:
 
 $$
 u, v \sim U(-0.5, 0.5), \qquad
-\text{step}_j = \text{levy\_scale} \cdot \frac{u_j}{|v_j|^{1/1.5}}
+\text{step}_j = \lambda \cdot \frac{u_j}{|v_j|^{1/1.5}}
 $$
 
 $$
-x_{ij} \leftarrow \operatorname{clamp}\!\big(x_{ij} + \text{cs\_alpha} \cdot \text{step}_j \cdot \text{range}_j\big)
+x_{ij} \leftarrow \operatorname{clamp}\!\big(x_{ij} + \alpha \cdot \text{step}_j \cdot \text{range}_j\big)
 $$
 
 Abandonment always removes at least one nest, in a count proportional to `pa`:

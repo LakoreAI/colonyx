@@ -12,6 +12,11 @@ description: How colonyx implements Ant Colony Optimization (ACO) for the Travel
 
 Ant Colony Optimization takes its name from the way real ant colonies find short paths between their nest and a food source. An individual ant wandering alone has no idea which route is shortest, but as ants travel back and forth they deposit a chemical trail called pheromone, and ants passing later are more likely to follow trails with a stronger pheromone concentration. Because shorter paths get walked (and therefore reinforced) more often per unit time than longer ones, the pheromone trail on the short path builds up faster, and over many trips the colony's traffic converges almost entirely onto the shortest route — without any single ant ever "knowing" the whole map.
 
+<figure markdown>
+![Three-step ACO loop: ants construct tours, each tour is scored while trails evaporate a little, then shorter tours deposit more pheromone and the cycle repeats](../assets/diagrams/aco.svg)
+<figcaption>The short path gets walked more often per unit time, so its pheromone builds up faster than it can evaporate.</figcaption>
+</figure>
+
 ACO simulates this process computationally to solve combinatorial optimization problems, most famously the Traveling Salesman Problem (TSP): given a set of cities and the distances between them, find the shortest tour that visits every city exactly once and returns to the start. Each simulated ant builds a complete tour city by city, choosing the next city with a probability that combines two signals — how much pheromone is on that edge (the colony's learned experience of what has worked well) and a heuristic value that's just the inverse of the edge's distance (a myopic preference for shorter hops). After every ant in the colony finishes its tour, pheromone evaporates a little on every edge (so the colony can forget stale information and keep exploring) and is then redeposited on the edges that good tours actually used, proportional to how good those tours were. Repeating this construct-evaporate-deposit cycle for many iterations causes the colony's collective behavior to converge toward consistently short tours, the same way real ant traffic converges onto short physical paths.
 
 ## How colonyx implements it
@@ -77,10 +82,10 @@ $$
 \tau_{ij} \mathrel{+}= \frac{q}{L_k} \quad \text{for each edge } (i,j) \text{ on ant } k\text{'s tour}
 $$
 
-For `elitist`, `acs`, and `mmas`, the best-so-far tour additionally deposits with an extra weight (this is `acs`'s *only* deposit):
+For `elitist`, `acs`, and `mmas`, the best-so-far tour additionally deposits with an extra weight \(e\) (`elitist_weight`; this is `acs`'s *only* deposit):
 
 $$
-\tau_{ij} \mathrel{+}= \frac{\text{elitist\_weight} \cdot q}{L^{*}} \quad \text{for each edge on the best-so-far tour}
+\tau_{ij} \mathrel{+}= \frac{e \cdot q}{L^{*}} \quad \text{for each edge on the best-so-far tour}
 $$
 
 `mmas` finally clamps every \(\tau_{ij}\) to \([\tau_{\min}, \tau_{\max}]\). See [ACO Variants](aco-variants.md) for how to select and configure `acs`, `elitist`, and `mmas`.

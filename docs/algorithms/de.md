@@ -12,6 +12,11 @@ description: Differential Evolution in colonyx — a strong general-purpose cont
 
 Differential Evolution optimizes a population of candidate vectors by exploiting the differences between them directly. For each individual in the population — the "target" — the algorithm picks three other distinct individuals at random, computes the vector difference between two of them, scales that difference, and adds it to the third to form a "mutant" vector. This mutant is then mixed into a copy of the target through crossover, swapping in the mutant's values at randomly chosen dimensions to produce a "trial" vector. If the trial scores at least as well as the target it was built from, it replaces the target outright. The elegance of DE is that the scale and direction of its mutation step come entirely from the current spread of the population itself — as the population converges, differences between individuals shrink automatically, so DE naturally transitions from broad exploration early in a run to fine local refinement later, without any explicit cooling schedule or step-size parameter to hand-tune.
 
+<figure markdown>
+![Three-step DE loop: mutate a target's three random peers into a difference vector, crossover it into a trial vector per dimension, then immediately replace the target if the trial is at least as good](../assets/diagrams/de.svg)
+<figcaption>Replacement is immediate and per-individual, not synchronized across a generation — that steady-state loop is what makes DE's mutation step size shrink automatically as the population converges.</figcaption>
+</figure>
+
 ## How colonyx implements it
 
 The Rust implementation in `src/algorithms/continuous.rs` runs DE as a steady-state loop: a trial replaces its target the moment it's found to be at least as good, rather than waiting for a full generation to complete before any replacements happen.

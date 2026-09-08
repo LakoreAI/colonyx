@@ -14,6 +14,11 @@ description: Nsga2Optimizer in colonyx — a compact NSGA-II implementation with
 
 Every algorithm documented elsewhere in colonyx optimizes a single scalar objective — there's always one number to minimize, and therefore one clear "best" solution. Many real problems don't fit that: minimizing cost and minimizing weight are both desirable in an engineering design, but they typically trade off against each other, so there's no single point that's best on both simultaneously. The right output for a genuinely multi-objective problem isn't one solution — it's the **Pareto front**: the set of solutions where no other candidate is at least as good on every objective and strictly better on one. NSGA-II (Deb et al., 2002) finds an approximation to that front with a genetic algorithm modified in two ways: candidates are ranked by **non-dominated sorting** into "fronts" (front 0 is dominated by nothing in the population, front 1 is dominated only by front 0, and so on — see the math below), and within a front they're additionally ranked by **crowding distance**, a measure of how isolated a point is from its front-mates. Selecting parents that are both low-rank (near the true front) and high-crowding-distance (in a sparsely covered region of it) pushes the population to converge toward the Pareto front while still spreading out along its whole length, rather than collapsing onto one small cluster of it.
 
+<figure markdown>
+![Four-step NSGA-II loop: rank the population into non-dominated fronts and compute crowding distance, tournament-select parents by rank then crowding to build offspring via crossover and mutation, combine parents and offspring and refill the next generation front-by-front while cutting the sparsest members of a partially-kept front, then repeat](../assets/diagrams/nsga2.svg)
+<figcaption>Front 0 (amber) is never guaranteed the same members twice — it's recomputed from scratch every generation as better candidates displace the old front.</figcaption>
+</figure>
+
 ## Definition
 
 NSGA-II (Non-dominated Sorting Genetic Algorithm II) evolves a population

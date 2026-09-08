@@ -12,6 +12,11 @@ description: How colonyx implements Particle Swarm Optimization (PSO) for contin
 
 Particle Swarm Optimization is loosely modeled on the coordinated movement of a flock of birds or a school of fish searching for food. No single bird knows where the food is, but each bird has a memory of the best spot it has personally found so far, and every bird also observes (or can be told) the best spot anyone in the flock has found so far. Each bird's next move is a compromise between continuing its own trajectory, drifting back toward its own best-known spot, and drifting toward the flock's best-known spot. Individually simple, locally-informed movements like this let the flock as a whole cover the search space efficiently and converge on good regions without any bird performing a global search on its own.
 
+<figure markdown>
+![Three-step PSO loop: scatter and evaluate particles, update each one's velocity toward its personal and global best, then move and repeat until the swarm converges](../assets/diagrams/pso.svg)
+<figcaption>Velocity blends three pulls — inertia, personal best, and global best — so the swarm converges without ever computing a gradient.</figcaption>
+</figure>
+
 PSO translates this into a numerical optimizer for continuous, real-valued problems: minimize an objective function \(f(x)\) over a box-constrained search space. A "particle" is a candidate solution vector plus a velocity vector; a "swarm" is a population of such particles. Each particle tracks its own personal-best position (the best point it has individually visited) and the whole swarm shares a global-best position (the best point anyone in the swarm has visited). At every iteration, each particle's velocity is nudged toward both of those attractors by a random amount, and the particle then moves according to its updated velocity. Because the pull toward the personal best encourages continued local refinement and the pull toward the global best encourages convergence toward the swarm's consensus, PSO balances individual exploration against collective exploitation without ever needing to compute a gradient of \(f\).
 
 ## How colonyx implements it

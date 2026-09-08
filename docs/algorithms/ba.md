@@ -10,7 +10,14 @@ description: Bat Algorithm in colonyx — a continuous optimizer inspired by mic
 
 ## What is the Bat Algorithm?
 
-Microbats navigate and hunt using echolocation: they emit pulses of sound and interpret the returning echoes to build a picture of their surroundings and locate prey. The Bat Algorithm borrows this behavior as a metaphor for continuous optimization. Each bat represents a candidate solution with a position and velocity, plus three echolocation-inspired properties — an emission frequency, a loudness, and a pulse rate. As the swarm searches, bats fly toward the best-known solution with a velocity update scaled by a randomly drawn frequency between `fmin` and `fmax`. With some probability tied to the pulse rate, a bat instead takes a small random walk around the best solution, mimicking a bat homing in tightly once it has detected nearby prey. A move is only accepted, and that bat's loudness and pulse rate updated, if it both improves the bat's own score and passes a loudness-weighted acceptance check — which is what lets loudness decay and pulse rate rise together as the swarm converges, the same way a real bat quiets down and pulses faster as it closes in on a target.
+Microbats navigate and hunt using echolocation: they emit pulses of sound and interpret the returning echoes to build a picture of their surroundings and locate prey. The Bat Algorithm borrows this behavior as a metaphor for continuous optimization. Each bat represents a candidate solution with a position and velocity, plus three echolocation-inspired properties — an emission frequency, a loudness, and a pulse rate.
+
+<figure markdown>
+![Three-step Bat Algorithm loop: fly toward the best solution at a random frequency (or take a small local walk near it instead), accept the move only if it both improves the score and passes a loudness-weighted coin flip while loudness decays and pulse rate rises, then repeat](../assets/diagrams/ba.svg)
+<figcaption>Loudness and pulse rate only update on an accepted move — that coupling is what makes the swarm quiet down and pulse faster together as it converges.</figcaption>
+</figure>
+
+As the swarm searches, bats fly toward the best-known solution with a velocity update scaled by a randomly drawn frequency between `fmin` and `fmax`. With some probability tied to the pulse rate, a bat instead takes a small random walk around the best solution, mimicking a bat homing in tightly once it has detected nearby prey. A move is only accepted, and that bat's loudness and pulse rate updated, if it both improves the bat's own score and passes a loudness-weighted acceptance check — which is what lets loudness decay and pulse rate rise together as the swarm converges, the same way a real bat quiets down and pulses faster as it closes in on a target.
 
 ## How colonyx implements it
 
@@ -56,11 +63,11 @@ $$
 x_i \leftarrow \operatorname{clamp}\!\big(x_{\text{best}} + 0.001 \cdot \mathcal{N}(0,1)\big)
 $$
 
-A candidate is accepted only if it improves \(x_i\)'s own score *and* passes a loudness-weighted coin flip; acceptance is what triggers both updates below:
+A candidate is accepted only if it improves \(x_i\)'s own score *and* passes a loudness-weighted coin flip; acceptance is what triggers both updates below, where \(\alpha\) is `bat_alpha` (loudness decay) and \(\gamma\) is `bat_gamma` (pulse-rate increase):
 
 $$
-A_i \leftarrow \text{bat\_alpha} \cdot A_i, \qquad
-r_i(t) = r_i(0)\left(1 - e^{-\text{bat\_gamma}\, t}\right)
+A_i \leftarrow \alpha \cdot A_i, \qquad
+r_i(t) = r_i(0)\left(1 - e^{-\gamma\, t}\right)
 $$
 
 !!! note "Pulse-rate schedule detail"

@@ -1,7 +1,47 @@
+/* Brand color, pulled from the exact hex values in docs/colonyx-logo.svg
+   (a blue/sky ramp) rather than Material's stock named "cyan" palette, so
+   the header/nav chrome matches the actual logo instead of just being in
+   the same general color family. Same values in both themes since the
+   header bar doesn't flip with the light/dark toggle. */
+:root {
+  --md-primary-fg-color: #0369a1;
+  --md-primary-fg-color--light: #0ea5e9;
+  --md-primary-fg-color--dark: #0c4a6e;
+  --md-accent-fg-color: #0ea5e9;
+  --md-accent-fg-color--transparent: #0ea5e91a;
+}
+
 /* MathJax's CHTML output doesn't wrap: a long display equation (common on
    the algorithm pages) can otherwise overflow the content column and get
    clipped instead of scrolling, especially on narrow viewports. */
 mjx-container {
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* Algorithm-page diagrams: centered, capped width so they read as a single
+   focal figure rather than stretching full-column-width, with a caption
+   that's visually distinct from body text (smaller, muted, italic) per
+   standard technical-doc convention so it doesn't compete with prose. */
+.md-typeset figure {
+  display: table;
+  margin: 1.5rem auto;
+  max-width: 100%;
+  text-align: center;
+}
+
+.md-typeset figure img {
+  max-width: 880px;
+  width: 100%;
+  height: auto;
+}
+
+.md-typeset figcaption {
+  display: table-caption;
+  caption-side: bottom;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--md-default-fg-color--light);
+  max-width: 34rem;
 }
