@@ -1,0 +1,7 @@
+/* MathJax's CHTML output doesn't wrap: a long display equation (common on
+   the algorithm pages) can otherwise overflow the content column and get
+   clipped instead of scrolling, especially on narrow viewports. */
+mjx-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+}

@@ -45,7 +45,10 @@ $$
 where \(s_i\) is worm \(i\)'s objective value. The neighbor set and target follow directly from luciferin and distance:
 
 $$
-N_i = \{\, j \neq i : \ell_j > \ell_i,\ \lVert x_i - x_j \rVert \le \text{neighborhood\_radius} \,\}, \qquad
+N_i = \{\, j \neq i : \ell_j > \ell_i,\ \lVert x_i - x_j \rVert \le \text{neighborhood\_radius} \,\}
+$$
+
+$$
 j^* = \operatorname*{arg\,min}_{j \in N_i} s_j
 $$
 
