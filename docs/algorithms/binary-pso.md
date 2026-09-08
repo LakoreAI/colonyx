@@ -1,6 +1,18 @@
-# Binary Particle Swarm
+---
+title: Binary Particle Swarm Optimization
+description: BinaryParticleSwarm in colonyx — a sigmoid-transformed PSO variant for bit-vector optimization problems like feature selection and subset selection.
+---
+
+# Binary Particle Swarm (Binary PSO)
 
 `BinaryParticleSwarm` is a bit-vector PSO variant for discrete search.
+
+!!! abstract "TL;DR"
+    [PSO](pso.md)'s velocity update, applied per-bit and squashed through a sigmoid so each bit is resampled as 0 or 1 instead of moved continuously. Use it when your decision variables are binary — feature selection, knapsack-style subset problems — and you want PSO-style social/cognitive dynamics instead of a bitwise genetic algorithm.
+
+## What is Binary PSO?
+
+Continuous PSO moves particles through real-valued space by adding a velocity to a position each iteration — that update has no meaning for a bit vector, since "position + velocity" isn't a bit. Kennedy and Eberhart's binary PSO keeps the same velocity equation (inertia, pull toward a particle's own best position, pull toward the swarm's global best) but reinterprets velocity as a *probability signal* rather than a displacement: each per-bit velocity is passed through a sigmoid function to squash it into `(0, 1)`, and the corresponding bit is then resampled as `1` with that probability. A particle whose velocity for a given bit keeps growing positive will, over iterations, almost always set that bit to `1`; a strongly negative velocity drives it toward `0`. This gives you the same momentum and swarm-communication dynamics that make continuous PSO effective, applied to problems where the natural encoding is a bit vector rather than a point in space.
 
 ## Definition
 
@@ -61,10 +73,12 @@ A large positive velocity pushes \(S(v_{ij}) \to 1\) (bit likely `1`); a
 large negative velocity pushes it toward `0` — the same directional pull as
 continuous PSO, just expressed as a probability instead of a displacement.
 
-## Use when
+## When to use it (and when not to)
 
-- You want PSO-style dynamics on binary decisions.
-- You can encode the problem as a binary vector objective.
+- You want PSO-style dynamics — momentum, social and cognitive attraction — on a problem whose decision variables are inherently binary (feature masks, item-selection/knapsack-style problems, on/off switches).
+- You can express the problem as an objective function over a bit vector.
+- Compared to continuous [PSO](pso.md): use `BinaryParticleSwarm` when the variables truly are binary; don't round continuous PSO's output to 0/1 as a substitute, since the search dynamics (sigmoid-probability resampling vs. continuous displacement) are genuinely different and Binary PSO is tuned for the discrete case.
+- Compared to a bitwise genetic algorithm: Binary PSO tends to converge faster on smoother binary landscapes thanks to the social/cognitive pull, while a GA's crossover can explore more disruptively — try both if convergence stalls.
 
 ## API
 
@@ -72,11 +86,14 @@ continuous PSO, just expressed as a probability instead of a displacement.
 
 ## Parameters
 
-- `n_particles`
-- `n_iterations`
-- `w`
-- `c1`
-- `c2`
+| Parameter | Default | Meaning | Tuning notes |
+|---|---|---|---|
+| `n_particles` | `30` | Swarm size. | More particles cover more of the bit-vector space per iteration; scale with the number of dimensions. |
+| `n_iterations` | `100` | Number of update steps. | Increase for higher-dimensional bit vectors or slow convergence. |
+| `w` | `0.7` | Inertia weight — how much of the previous velocity carries forward. | Higher values favor exploration (bits flip more freely); lower values favor exploitation. |
+| `c1` | `1.5` | Cognitive coefficient — pull toward a particle's own best-known bit vector. | Raise it if particles should trust their own history more than the swarm. |
+| `c2` | `1.5` | Social coefficient — pull toward the swarm's global best. | Raise it for faster convergence toward the current best at the cost of diversity. |
+| `random_state` | `None` | Seed for reproducible runs. | Set an integer for deterministic results. |
 
 ## Example
 
@@ -91,3 +108,9 @@ optimizer.fit(objective, lower=[0.0] * 10, upper=[1.0] * 10)
 print(optimizer.predict())
 print(optimizer.score())
 ```
+
+## Further reading
+
+- Kennedy, J., & Eberhart, R. C. (1997). *A Discrete Binary Version of the Particle Swarm Algorithm.* IEEE International Conference on Systems, Man, and Cybernetics.
+- [PSO](pso.md) — the continuous-space algorithm this variant reinterprets for binary decisions.
+- [Advanced Algorithms](advanced.md) · [Algorithms Overview](../algorithms.md)

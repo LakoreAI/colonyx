@@ -314,8 +314,7 @@ impl Optimizer for FireflyOptimizer {
         let mut fireflies: Vec<Vec<f64>> = (0..self.n_fireflies)
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
-        let mut scores: Vec<f64> =
-            evaluate_population(problem, &fireflies);
+        let mut scores: Vec<f64> = evaluate_population(problem, &fireflies);
 
         let best_index = scores
             .iter()
@@ -654,6 +653,8 @@ pub struct BatAlgorithm {
 }
 
 impl BatAlgorithm {
+    // Mirrors `PyBatAlgorithm::new`'s independently-defaulted Python kwargs.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         n_bats: usize,
         n_iterations: usize,
@@ -704,8 +705,7 @@ impl Optimizer for BatAlgorithm {
             (0..self.n_bats).map(|_| random_position(&self.bounds, &ranges, &mut rng)).collect();
         let mut velocities = vec![vec![0.0; dimension]; self.n_bats];
         let mut frequencies = vec![0.0; self.n_bats];
-        let mut scores: Vec<f64> =
-            evaluate_population(problem, &positions);
+        let mut scores: Vec<f64> = evaluate_population(problem, &positions);
         let mut loudness = vec![self.loudness; self.n_bats];
         let initial_pulse_rate = self.pulse_rate;
         let mut pulse = vec![self.pulse_rate; self.n_bats];
@@ -1001,8 +1001,7 @@ impl Optimizer for BacterialForagingOptimizer {
         let mut bacteria: Vec<Vec<f64>> = (0..self.n_bacteria)
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
-        let mut scores: Vec<f64> =
-            evaluate_population(problem, &bacteria);
+        let mut scores: Vec<f64> = evaluate_population(problem, &bacteria);
 
         let best_index = scores
             .iter()
@@ -1155,8 +1154,7 @@ impl Optimizer for DifferentialEvolution {
         let mut population: Vec<Vec<f64>> = (0..self.n_individuals)
             .map(|_| random_position(&self.bounds, &ranges, &mut rng))
             .collect();
-        let mut scores: Vec<f64> =
-            evaluate_population(problem, &population);
+        let mut scores: Vec<f64> = evaluate_population(problem, &population);
 
         let best_index = scores
             .iter()

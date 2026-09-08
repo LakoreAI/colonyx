@@ -20,3 +20,10 @@ crate-type = ["cdylib", "rlib"]
 pyo3 = { version = "0.25.0", features = ["extension-module"] }
 rand = "0.8"
 rayon = "1.10"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "algorithms"
+harness = false

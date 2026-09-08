@@ -1,7 +1,21 @@
+---
+title: Rust Usage
+description: How colonyx's Rust core works, why the optimization loops are written in Rust rather than Python, and how to use colonyx directly as a Rust crate.
+---
+
 # Rust usage
 
 `colonyx` exposes its optimization core as a Rust library and its Python
-extension from the same codebase.
+extension from the same codebase: `src/algorithms/` and `src/core/` contain
+the actual algorithm implementations and shared problem/solution types, and
+`src/bindings.rs` wraps them with [PyO3](https://pyo3.rs/) so the exact same
+code compiles into both a standalone Rust crate and the `colonyx._colonyx`
+extension module that `colonyx/__init__.py` re-exports from. [maturin](https://www.maturin.rs/)
+builds that extension module.
+
+## Why the optimization core is written in Rust
+
+Every algorithm here runs its inner loop — evaluate a population's fitness, update positions/velocities, sort or select, repeat — for potentially thousands of iterations across dozens of candidate solutions, which means tens of thousands to millions of small numeric operations per `fit()` call. That's exactly the workload where a native compiled loop with no per-iteration interpreter overhead, and no per-object allocation for things like particle positions, meaningfully outperforms the equivalent pure-Python loop; Rust also gets memory safety without a garbage collector, so continuous allocation/deallocation of populations across iterations doesn't add GC pause overhead into a hot loop the way it would in Python. This is why colonyx's algorithms live in Rust rather than Python from the ground up, instead of writing them in Python first and rewriting only proven bottlenecks later: for this workload, the hot path essentially *is* the whole algorithm. The tradeoff is that colonyx as a Rust crate has to expose Python-callable objectives through PyO3's callback mechanism (see the note on GIL and Python objectives below) whenever your objective function itself is written in Python rather than in Rust — that boundary crossing has real cost per call, which is worth knowing about if your objective function is cheap and called extremely often.
 
 ## Add the crate
 
@@ -146,3 +160,13 @@ about the result.
 - The Python extension still lives at `colonyx._colonyx`.
 - `colonyx::core` contains shared problem and solution types.
 - `colonyx::algorithms` contains the Rust implementations.
+
+## Building the extension yourself
+
+If you're contributing to colonyx or just want to build from source rather than installing a wheel from PyPI, `maturin develop` builds the extension module and installs it into your active Python environment in one step — see [Release](release.md#local-build) for the exact commands, including the `RUSTFLAGS` needed on macOS for `cargo build` without maturin.
+
+## Where to next
+
+- [API Reference](api.md#rust-side-traits) for the `Optimizer`/`MultiObjectiveOptimizer`/`Problem` trait signatures.
+- [Release](release.md) for building, packaging, and publishing both the PyPI wheel and the crates.io crate.
+- [Algorithms overview](algorithms.md) for what each algorithm actually does, independent of which language you call it from.

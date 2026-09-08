@@ -1,6 +1,18 @@
-# NSGA-II
+---
+title: NSGA-II Multi-Objective Optimizer
+description: Nsga2Optimizer in colonyx — a compact NSGA-II implementation with non-dominated sorting and crowding distance for multi-objective optimization problems.
+---
+
+# Non-dominated Sorting Genetic Algorithm II (NSGA-II)
 
 `Nsga2Optimizer` is a compact multi-objective optimizer with Pareto ranking.
+
+!!! abstract "TL;DR"
+    A genetic algorithm for problems with multiple, conflicting objectives — instead of one best answer, it returns a Pareto front: a set of solutions where improving one objective requires worsening another. Ranks candidates by non-dominated "fronts" and, within a front, by crowding distance, so the search both converges toward the front and spreads out along it. Compare against [MOPSO](mopso.md), which solves the same problem class with particle-swarm mechanics instead of a GA.
+
+## What is multi-objective optimization, and what does NSGA-II do about it?
+
+Every algorithm documented elsewhere in colonyx optimizes a single scalar objective — there's always one number to minimize, and therefore one clear "best" solution. Many real problems don't fit that: minimizing cost and minimizing weight are both desirable in an engineering design, but they typically trade off against each other, so there's no single point that's best on both simultaneously. The right output for a genuinely multi-objective problem isn't one solution — it's the **Pareto front**: the set of solutions where no other candidate is at least as good on every objective and strictly better on one. NSGA-II (Deb et al., 2002) finds an approximation to that front with a genetic algorithm modified in two ways: candidates are ranked by **non-dominated sorting** into "fronts" (front 0 is dominated by nothing in the population, front 1 is dominated only by front 0, and so on — see the math below), and within a front they're additionally ranked by **crowding distance**, a measure of how isolated a point is from its front-mates. Selecting parents that are both low-rank (near the true front) and high-crowding-distance (in a sparsely covered region of it) pushes the population to converge toward the Pareto front while still spreading out along its whole length, rather than collapsing onto one small cluster of it.
 
 ## Definition
 
@@ -85,10 +97,12 @@ per-gene Gaussian-like mutation (probability `mutation_rate`, magnitude
 combined parent+offspring pool, breaking ties in a partially-included front
 by crowding distance.
 
-## Use when
+## When to use it (and when not to)
 
-- You need a small multi-objective baseline.
-- You want a Pareto archive from a Python objective that returns a vector.
+- You need a small, dependency-free multi-objective baseline you can drop into a Python objective that returns a vector of scores.
+- You want a Pareto front rather than a single point, because your objectives genuinely conflict.
+- Compared to [MOPSO](mopso.md): both return a Pareto set from the same kind of input (a vector-valued objective plus box bounds), so the choice comes down to search dynamics — NSGA-II's crossover/mutation tends to explore more disruptively and its crowding-distance mechanism is specifically designed for even front coverage; MOPSO's particle-swarm leader-following tends to converge faster but relies on the archive's non-dominated front for diversity. For a small number of objectives (2–3), both are reasonable starting points — try both and compare front quality.
+- Skip it for single-objective problems — reach for one of the [core `AutoColony` modes](../algorithms.md) instead, since NSGA-II's non-dominated sorting degenerates to plain fitness ranking when there's only one objective and buys you nothing.
 
 ## API
 
@@ -96,12 +110,15 @@ by crowding distance.
 
 ## Parameters
 
-- `n_individuals`
-- `n_iterations`
-- `crossover_rate`
-- `mutation_rate`
-- `mutation_scale`
-- `archive_size`
+| Parameter | Default | Meaning | Tuning notes |
+|---|---|---|---|
+| `n_individuals` | `40` | Population size. | Larger populations give denser front coverage at the cost of more evaluations per generation. |
+| `n_iterations` | `100` | Number of generations. | Increase until the front stops visibly improving between runs. |
+| `crossover_rate` | `0.9` | Probability that two parents produce a blended child. | Standard GA practice keeps this high (0.7–0.95); lower values slow convergence. |
+| `mutation_rate` | `0.1` | Per-gene mutation probability. | Higher values add diversity but can disrupt convergence near the front. |
+| `mutation_scale` | `0.1` | Magnitude of each mutation step. | Scale relative to your bounds' range; too large and mutation acts like re-randomization. |
+| `archive_size` | `50` | Maximum number of solutions kept in the returned Pareto front. | Raise it for finer front resolution; it only truncates the *output*, not the working population. |
+| `random_state` | `None` | Seed for reproducible runs. | Set an integer for deterministic results. |
 
 ## Example
 
@@ -121,3 +138,9 @@ print(optimizer.predict())
     requires `objectives(x)` to return at least 2 values. It raises
     `ValueError` if `fit()` was called with a single-objective function —
     `predict()` (the Pareto front itself) still works either way.
+
+## Further reading
+
+- Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. (2002). *A Fast and Elitist Multiobjective Genetic Algorithm: NSGA-II.* IEEE Transactions on Evolutionary Computation, 6(2), 182–197.
+- [MOPSO](mopso.md) — the particle-swarm counterpart for the same multi-objective problem class.
+- [Advanced Algorithms](advanced.md) · [Algorithms Overview](../algorithms.md)

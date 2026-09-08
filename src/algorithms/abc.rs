@@ -219,7 +219,7 @@ impl Optimizer for BeeColony {
 
 /// Select an index in proportion to `weights` (which sum to `total`).
 fn roulette_select(weights: &[f64], total: f64, rng: &mut StdRng) -> usize {
-    if !(total > 0.0) || !total.is_finite() {
+    if total <= 0.0 || !total.is_finite() {
         return rng.gen_range(0..weights.len());
     }
     let threshold = rng.gen::<f64>() * total;

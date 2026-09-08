@@ -155,9 +155,7 @@ fn order_crossover(parent_a: &[usize], parent_b: &[usize], rng: &mut StdRng) -> 
     let end = rng.gen_range(start..size);
     let mut child = vec![usize::MAX; size];
 
-    for index in start..=end {
-        child[index] = parent_a[index];
-    }
+    child[start..=end].copy_from_slice(&parent_a[start..=end]);
 
     if !child.contains(&usize::MAX) {
         return child;
@@ -719,6 +717,8 @@ pub struct MopsoOptimizer {
 }
 
 impl MopsoOptimizer {
+    // Mirrors `PyMopsoOptimizer::new`'s independently-defaulted Python kwargs.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         n_particles: usize,
         n_iterations: usize,

@@ -39,6 +39,7 @@ theme:
     repo: fontawesome/brands/github
 
 markdown_extensions:
+  - meta
   - admonition
   - pymdownx.details
   - pymdownx.superfences

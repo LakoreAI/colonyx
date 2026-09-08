@@ -1,0 +1,13 @@
+# PyO3's `extension-module` feature (required so the compiled `.so`/`.pyd`
+# doesn't try to statically link libpython) only gets macOS's
+# `-undefined dynamic_lookup` linker workaround applied to `cargo test`
+# targets automatically. Plain binaries and `cargo bench` targets (like
+# `benches/algorithms.rs`) need the same flag set explicitly here, or the
+# linker fails with "symbol(s) not found for architecture" on Python C-API
+# symbols that are only resolved at runtime once the Python interpreter
+# loads the extension. See the PyO3 FAQ: https://pyo3.rs/main/faq.html
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]

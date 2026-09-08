@@ -88,6 +88,7 @@ instance/
 docs/_build/
 # QA documentation (generated or temporary)
 docs/QA.md
+archive/
 
 # PyBuilder
 .pybuilder/
@@ -187,3 +188,4 @@ dmypy.json
 # Ruff stuff:
 .ruff_cache/
 
+archive/

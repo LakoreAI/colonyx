@@ -51,6 +51,7 @@ python-source = "."
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
+    "hypothesis>=6.100",
 ]
 docs = [
     "mkdocs>=1.6",

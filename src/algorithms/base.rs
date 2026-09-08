@@ -15,9 +15,9 @@ pub trait Optimizer {
     fn get_params(&self) -> std::collections::HashMap<String, f64>;
 }
 
-pub use crate::core::Problem;
 use crate::algorithms::advanced::ParetoPoint;
 use crate::core::MultiObjectiveProblem;
+pub use crate::core::Problem;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 

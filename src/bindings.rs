@@ -18,6 +18,11 @@ use crate::algorithms::{
 };
 use crate::core::{Bounds, ContinuousProblem, DiscreteProblem};
 
+/// A boxed single-objective closure, shared by every `#[pyclass]`'s `fit()`.
+type Objective = Box<dyn Fn(&[f64]) -> f64 + Send + Sync>;
+/// A boxed multi-objective closure, used by the Pareto-front optimizers.
+type MultiObjective = Box<dyn Fn(&[f64]) -> Vec<f64> + Send + Sync>;
+
 /// Build `Bounds` from Python lower/upper lists, surfacing errors as `ValueError`.
 fn build_bounds(lower: Vec<f64>, upper: Vec<f64>) -> PyResult<Bounds> {
     Bounds::new(lower, upper).map_err(PyValueError::new_err)
@@ -28,11 +33,7 @@ fn build_bounds(lower: Vec<f64>, upper: Vec<f64>) -> PyResult<Bounds> {
 /// The callable is validated once at `probe_point` so a broken objective raises a
 /// clear Python exception up front; during the search any per-call error maps to
 /// `+inf` (an infeasible point for minimization) rather than unwinding across FFI.
-fn make_objective(
-    py: Python<'_>,
-    func: PyObject,
-    probe_point: &[f64],
-) -> PyResult<Box<dyn Fn(&[f64]) -> f64 + Send + Sync>> {
+fn make_objective(py: Python<'_>, func: PyObject, probe_point: &[f64]) -> PyResult<Objective> {
     let probe = func.call1(py, (probe_point.to_vec(),))?;
     probe.extract::<f64>(py)?;
 
@@ -48,7 +49,7 @@ fn make_multi_objective(
     py: Python<'_>,
     func: PyObject,
     probe_point: &[f64],
-) -> PyResult<Box<dyn Fn(&[f64]) -> Vec<f64> + Send + Sync>> {
+) -> PyResult<MultiObjective> {
     let probe = func.call1(py, (probe_point.to_vec(),))?;
     probe.extract::<Vec<f64>>(py)?;
 
@@ -92,6 +93,11 @@ impl PyAntColony {
         tau_max = 10.0,
         random_state = None,
     ))]
+    // Every argument is a distinct, independently-defaulted Python kwarg on
+    // `colonyx._colonyx.AntColony(...)`; collapsing them into a config
+    // struct would just move the same flat list one level down while
+    // breaking the public constructor signature.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         n_ants: usize,
         n_iterations: usize,
@@ -279,8 +285,7 @@ impl PyParticleSwarm {
             bounds,
         );
         pso.set_random_seed(self.random_state);
-        py.allow_threads(|| pso.fit(&problem))
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| pso.fit(&problem)).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = pso.predict() {
             self.best_position = Some(solution.variables);
@@ -379,8 +384,7 @@ impl PyBeeColony {
 
         let mut abc = BeeColony::new(self.n_bees, self.n_iterations, self.limit, bounds);
         abc.set_random_seed(self.random_state);
-        py.allow_threads(|| abc.fit(&problem))
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        py.allow_threads(|| abc.fit(&problem)).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         if let Some(solution) = abc.predict() {
             self.best_position = Some(solution.variables);
@@ -842,6 +846,9 @@ impl PyBatAlgorithm {
         pulse_rate = 0.5,
         random_state = None,
     ))]
+    // See the comment on `PyAntColony::new` above: these mirror the
+    // independently-defaulted Python kwargs on `BatAlgorithm(...)`.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         n_bats: usize,
         n_iterations: usize,
@@ -1701,6 +1708,9 @@ impl PyMopsoOptimizer {
         archive_size = 50,
         random_state = None,
     ))]
+    // See the comment on `PyAntColony::new` above: these mirror the
+    // independently-defaulted Python kwargs on `MopsoOptimizer(...)`.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         n_particles: usize,
         n_iterations: usize,

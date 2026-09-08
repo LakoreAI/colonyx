@@ -43,6 +43,10 @@ pub struct AntColony {
 }
 
 impl AntColony {
+    // One argument per independently-tunable ACO hyperparameter, mirrored
+    // 1:1 by `PyAntColony::new`'s Python kwargs; a config struct would just
+    // move the same flat list to a call site that still has to build it.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         n_ants: usize,
         n_iterations: usize,
@@ -149,7 +153,7 @@ impl AntColony {
         }
 
         // Degenerate weights (all zero / non-finite): pick a uniform unvisited city.
-        if !(total > 0.0) || !total.is_finite() {
+        if total <= 0.0 || !total.is_finite() {
             let pick = rng.gen_range(0..candidates.len());
             return candidates[pick].0;
         }
@@ -195,12 +199,10 @@ impl AntColony {
             Some(pheromone) => pheromone,
             None => return,
         };
-        let n = pheromone.len();
-
         // Evaporation.
-        for i in 0..n {
-            for j in 0..n {
-                pheromone[i][j] *= 1.0 - rho;
+        for row in pheromone.iter_mut() {
+            for value in row.iter_mut() {
+                *value *= 1.0 - rho;
             }
         }
 
@@ -355,10 +357,10 @@ mod tests {
     /// The unique optimal tour is the ring itself, of length `n`.
     fn ring_problem(n: usize) -> DiscreteProblem {
         let mut matrix = vec![vec![0.0; n]; n];
-        for i in 0..n {
-            for j in 0..n {
+        for (i, row) in matrix.iter_mut().enumerate() {
+            for (j, cell) in row.iter_mut().enumerate() {
                 let gap = ((i as i64) - (j as i64)).abs();
-                matrix[i][j] = if i == j {
+                *cell = if i == j {
                     0.0
                 } else if gap == 1 || gap == (n as i64 - 1) {
                     1.0

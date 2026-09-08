@@ -1,18 +1,20 @@
-# Cuckoo Search
+---
+title: Cuckoo Search (CS)
+description: Cuckoo Search in colonyx — a Lévy-flight continuous optimizer inspired by brood parasitism. How it works, when to use it, parameters, and a runnable Python example.
+---
 
-`CuckooSearch` combines Lévy-flight steps with nest replacement.
+# Cuckoo Search (CS)
 
-## Definition
+!!! abstract "TL;DR"
+    Cuckoo Search is a population-based continuous optimizer that mixes small local moves with occasional large "Lévy flight" jumps, then periodically abandons its worst candidates and re-randomizes them. It is a good default when you want exploration-heavy search over a bounded continuous objective and are willing to tune how aggressively bad candidates get discarded. Run it in colonyx with `AutoColony(mode="cs")`.
 
-Cuckoo Search (CS) is a population-based continuous optimizer inspired by
-the brood-parasitism of cuckoo birds. Each "nest" holds a candidate
-solution; every iteration, each nest is perturbed by a Lévy-flight step —
-a heavy-tailed random step that mixes many small moves with occasional
-large jumps — and the perturbed candidate replaces the nest if it improves
-on it. A fraction of the worst nests are then abandoned and re-randomized
-each iteration, which is what CS calls "host discovery" of the parasitic egg.
+## What is Cuckoo Search?
 
-## Pseudocode
+Cuckoo Search takes its metaphor from the brood parasitism of certain cuckoo species, which lay their eggs in the nests of other host birds rather than raising their own young. In the algorithm, each "nest" is a candidate solution — a point in the search space — and the population of nests evolves generation by generation. Every iteration, each nest is perturbed by a Lévy-flight step: a heavy-tailed random step that produces mostly small moves with occasionally very large ones, which is a useful property for optimization because it lets the search wander broadly through the space without ever fully abandoning fine-grained local refinement. If the perturbed candidate scores better than the nest it came from, it replaces it. Then, mimicking a host bird discovering and rejecting a parasitic egg, a fraction of the worst-scoring nests are abandoned each iteration and replaced with fresh random positions, which keeps the population from stagnating around a single region of the search space.
+
+## How colonyx implements it
+
+colonyx's Cuckoo Search runs as a single loop of Lévy-flight moves followed by abandonment, verified against the Rust implementation in `src/algorithms/continuous.rs`:
 
 ```text
 nests[1..n_nests] <- random positions within bounds
@@ -36,50 +38,54 @@ for iteration in 1..n_iterations:
     update best from the current nests
 ```
 
-## Mathematical Formulation
-
-Each nest's step is drawn from two independent uniform variates per
-dimension (this is a simplified heavy-tailed step, not literature Lévy
-flight via Mantegna's algorithm and normal draws):
+Each nest's step is drawn from two independent uniform variates per dimension. This is a simplified heavy-tailed step rather than the literature's Lévy flight via Mantegna's algorithm and normal draws, but it produces the same qualitative behavior — mostly small moves, occasionally a large one:
 
 $$
 u, v \sim U(-0.5, 0.5), \qquad
-\text{step}_j = \text{levy_scale} \cdot \frac{u_j}{|v_j|^{1/1.5}}
+\text{step}_j = \text{levy\_scale} \cdot \frac{u_j}{|v_j|^{1/1.5}}
 $$
 
 $$
-x_{ij} \leftarrow \operatorname{clamp}\!\big(x_{ij} + \text{cs_alpha} \cdot \text{step}_j \cdot \text{range}_j\big)
+x_{ij} \leftarrow \operatorname{clamp}\!\big(x_{ij} + \text{cs\_alpha} \cdot \text{step}_j \cdot \text{range}_j\big)
 $$
 
-Abandonment replaces the worst-scoring nests, in count:
+Abandonment always removes at least one nest, in a count proportional to `pa`:
 
 $$
 n_{\text{abandon}} = \max\!\big(1,\ \lceil pa \cdot n_{\text{nests}} \rceil\big)
 $$
 
-## Use when
+## When to use it (and when not to)
 
-- You want exploration-heavy continuous search.
-- You can tune abandonment probability.
-
-## API
-
-- Rust class: `colonyx._colonyx.CuckooSearch`
-- Python mode: `AutoColony(mode="cs")`
+Reach for Cuckoo Search when you want a continuous optimizer that leans toward exploration rather than fast convergence — the combination of heavy-tailed steps and periodic abandonment is good at escaping shallow local optima on rugged, multimodal objectives. It is a reasonable alternative to [Particle Swarm Optimization](pso.md) when PSO keeps converging prematurely on the same local minimum, since CS has no velocity/momentum term pulling every candidate toward a shared best position. It is not the best choice when you need fast, smooth convergence on a well-behaved (roughly convex or mildly multimodal) objective — [Differential Evolution](de.md) or plain PSO will usually get there in fewer iterations with less tuning. If your landscape is ill-conditioned or has strong correlations between dimensions, [CMA-ES](cmaes.md) will typically outperform CS because it adapts its search distribution to the local shape of the objective, something CS's per-dimension Lévy steps do not do.
 
 ## Parameters
 
-- `n_nests`
-- `n_iterations`
-- `pa`
-- `cs_alpha` (Lévy-flight step scale; the Rust `CuckooSearch` constructor takes this as `alpha`)
-- `levy_scale`
+| Parameter | Default | Meaning | Tuning guidance |
+|---|---|---|---|
+| `n_nests` | `25` | Population size — number of candidate solutions maintained per generation. | Increase for higher-dimensional or more rugged objectives; each extra nest costs one more objective evaluation per iteration. |
+| `pa` | `0.25` | Fraction of the worst-scoring nests abandoned and re-randomized each iteration. | Higher values (closer to `0.4`) increase exploration and help escape local optima at the cost of convergence speed; lower values let good regions be refined for longer before being discarded. |
+| `cs_alpha` | `0.01` | Step-size scale applied to the Lévy step (passed to the Rust `CuckooSearch` constructor as `alpha`). | Larger values take bigger jumps per iteration — useful early on or on wide search spaces, but can overshoot narrow optima if left too high throughout the run. |
+| `levy_scale` | `1.0` | Overall scale of the Lévy-flight step before `cs_alpha` is applied. | Tune alongside `cs_alpha`; the two multiply together, so changing one changes the effective step size the same way as changing the other. |
+| `n_iterations` | `100` | Number of generations to run (shared across all `AutoColony` modes). | Increase for harder or higher-dimensional problems; watch `score_history_` for a plateau before spending a larger budget. |
 
 ## Example
 
 ```python
 from colonyx import AutoColony
 
-optimizer = AutoColony(mode="cs", n_iterations=100, random_state=7)
-optimizer.fit(lambda x: sum(v * v for v in x), bounds=[(-5, 5), (-5, 5)])
+def sphere(x):
+    return sum(xi * xi for xi in x)
+
+optimizer = AutoColony(mode="cs", n_iterations=100, pa=0.25, random_state=7)
+optimizer.fit(sphere, bounds=[(-5, 5), (-5, 5)])
+
+optimizer.predict()  # best position found, ~ [0, 0]
+optimizer.score()    # objective value at that position, ~ 0
 ```
+
+## Further reading
+
+- Yang, X.-S. and Deb, S. (2009). *Cuckoo Search via Lévy Flights*. World Congress on Nature & Biologically Inspired Computing (NaBIC).
+- [Algorithms overview](../algorithms.md) — compare Cuckoo Search against every other algorithm colonyx ships.
+- [AutoColony API reference](../autocolony-api.md) — the unified `mode=` interface used above.

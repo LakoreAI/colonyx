@@ -1,27 +1,20 @@
-# CMA-ES
+---
+title: CMA-ES
+description: CMA-ES in colonyx — a separable Covariance Matrix Adaptation Evolution Strategy with real cumulative step-size adaptation, for ill-conditioned continuous optimization.
+---
 
-`CmaEsOptimizer` is a separable (diagonal-covariance) CMA-ES: each axis adapts
-its own variance rather than a full covariance matrix, so it cannot model
-axis rotation. The step size (`sigma`) follows real cumulative step-size
-adaptation (CSA) via an evolution path, the same mechanism full CMA-ES uses.
+# Covariance Matrix Adaptation Evolution Strategy (CMA-ES)
 
-## Definition
+!!! abstract "TL;DR"
+    CMA-ES maintains a search distribution — a mean position, a per-axis variance, and a global step size — and reshapes that distribution generation by generation toward the local optimum's contour. colonyx's implementation is *separable* CMA-ES: it adapts a diagonal covariance (independent per-axis variances) rather than a full covariance matrix, so it can't model rotated correlations between dimensions, but its step size follows the real cumulative step-size adaptation (CSA) mechanism, not a fixed decay schedule. It's the strongest choice here for ill-conditioned or badly-scaled continuous objectives. Run it in colonyx with `AutoColony(mode="cmaes")`.
 
-Covariance Matrix Adaptation Evolution Strategy (CMA-ES) is a continuous
-optimizer that maintains a search distribution — a mean position plus a
-per-axis variance and a global step size `sigma` — and adapts that
-distribution generation by generation. Each generation, a whole population
-is sampled from the current distribution and evaluated as one independent
-batch (no candidate's fitness depends on another's within the generation);
-the better half is used to recompute the mean, and an evolution path tracks
-how that mean has been moving to adapt `sigma` up or down. This
-implementation is *separable* CMA-ES: it adapts a diagonal covariance
-(independent per-axis variances) rather than a full covariance matrix, so
-it cannot model correlations/rotation between dimensions — but `sigma`
-itself follows the real cumulative step-size adaptation (CSA) mechanism
-full CMA-ES uses, not a fixed decay schedule.
+## What is CMA-ES?
 
-## Pseudocode
+Most population-based optimizers move a fixed-shape cloud of candidates around the search space. CMA-ES instead treats the population as samples from a multivariate normal distribution and actively reshapes that distribution as it learns about the objective. Each generation, a full population is drawn from the current distribution — a mean plus a step size `sigma` and a covariance describing how spread out the distribution is along each axis — and evaluated as one independent batch, meaning no candidate's fitness within a generation depends on another's. The better-performing half of that batch is used to recompute the mean, pulling the distribution toward promising territory, while an "evolution path" tracks the recent history of how that mean has moved in order to adapt `sigma` up when progress is fast and consistent, or down when the search is oscillating. This adaptive reshaping is what lets CMA-ES handle objectives that are stretched, skewed, or poorly scaled along different axes far better than algorithms that take axis-aligned or fixed-radius steps. colonyx's implementation is specifically *separable* CMA-ES: it adapts a diagonal covariance matrix, meaning each axis gets its own independently-learned variance, rather than the full covariance matrix that models correlations and rotation between axes. That's a deliberate trade-off — it makes the algorithm cheaper and simpler while still capturing the most common real-world failure mode of badly-scaled objectives (one dimension needing much larger steps than another) even though it can't fully align with a rotated elliptical valley the way full CMA-ES can. The step-size mechanism, however, is not simplified: `sigma` follows real cumulative step-size adaptation via an evolution path, the same core mechanism full CMA-ES uses.
+
+## How colonyx implements it
+
+The Rust implementation in `src/algorithms/continuous.rs` derives the CSA constants once from the population's recombination weight `mu` and the problem's dimensionality, then runs one sample-rank-update cycle per generation:
 
 ```text
 mean <- midpoint of the bounds
@@ -49,11 +42,7 @@ for generation in 1..n_iterations:
     mean <- new_mean
 ```
 
-`c_sigma`, `d_sigma`, `mu_eff`, and `chi_n` are the standard CSA constants
-from Hansen's CMA-ES tutorial, derived once from `mu` and the problem's
-dimensionality before the generation loop starts.
-
-## Mathematical Formulation
+`c_sigma`, `d_sigma`, `mu_eff`, and `chi_n` are the standard CSA constants from Hansen's CMA-ES tutorial, derived once from `mu` and the problem's dimensionality before the generation loop starts.
 
 Sampling and log-decreasing recombination weights (\(n\) = dimensions):
 
@@ -91,43 +80,43 @@ $$
 \sigma \leftarrow \sigma \exp\!\left(\frac{c_\sigma}{d_\sigma}\left(\frac{\lVert p_\sigma\rVert}{\chi_n}-1\right)\right)
 $$
 
-Diagonal covariance, blended with the previous value rather than replaced
-outright (an EMA-style update, not the canonical rank-\(\mu\) learning-rate
-formula):
+Diagonal covariance, blended with the previous value rather than replaced outright — an EMA-style update rather than the canonical rank-\(\mu\) learning-rate formula:
 
 $$
 C_{jj} \leftarrow 0.8\,C_{jj} + 0.2\cdot\frac{\sum_{i=1}^{\mu} w_i\,(x_{i:\lambda,j}-m_j)^2}{\text{range}_j^2}
 $$
 
-## Use when
+!!! tip "Parallel fitness evaluation"
+    Each generation's `n_individuals` candidates are evaluated in parallel (via Rayon) before ranking, since canonical CMA-ES never lets one candidate's fitness influence another's within the same generation. This is a real speedup when the objective is CPU-heavy — a plain Python objective still serializes on the GIL, but one that spends its time inside NumPy/SciPy/C-extension code (which releases the GIL) benefits.
 
-- You want a strong continuous optimizer with covariance adaptation.
-- You can provide bounds and a reasonable iteration budget.
+## When to use it (and when not to)
 
-## API
-
-- Rust class: `colonyx._colonyx.CmaEsOptimizer`
-- Python mode: `AutoColony(mode="cmaes")`
+Reach for CMA-ES when your objective is ill-conditioned, badly scaled, or has a curved, elongated optimum — the kind of landscape where [PSO](pso.md) or [Differential Evolution](de.md) tend to zigzag inefficiently because they take steps that aren't shaped to match the local geometry. Its per-axis variance adaptation lets it stretch its search distribution along whichever dimensions actually need larger steps, converging faster and more reliably than axis-agnostic algorithms on this kind of problem. It's overkill for simple, well-scaled, roughly convex objectives, where DE or PSO will get you there with less machinery and fewer objective evaluations per generation to reach a comparable result. Because colonyx's variant is separable rather than full CMA-ES, it still can't fully exploit a rotated elliptical valley (correlations between dimensions) — if you know your problem has that specific structure and need the absolute best convergence rate, a full-covariance CMA-ES implementation outside colonyx would do better, at higher computational cost per generation.
 
 ## Parameters
 
-- `n_individuals`
-- `n_iterations`
-- `cmaes_sigma` via `AutoColony(mode="cmaes")`; the same value is `sigma` when
-  constructing `colonyx._colonyx.CmaEsOptimizer` directly (it's renamed on
-  `AutoColony` so it doesn't collide with other modes' own `sigma`-shaped
-  parameters)
+| Parameter | Default | Meaning | Tuning guidance |
+|---|---|---|---|
+| `n_individuals` | `40` | Population size per generation (\(\lambda\)); recombination uses the best half (\(\mu = \lambda/2\)). | Larger populations improve robustness on hard, noisy, or highly multimodal objectives, at the cost of more evaluations per generation. |
+| `cmaes_sigma` | `0.5` | Initial global step size (passed to the Rust `CmaEsOptimizer` constructor as `sigma`, renamed on `AutoColony` so it doesn't collide with other modes' own `sigma`-shaped parameters). | Set it relative to how large a fraction of your bounds' range you expect the initial useful step to be; it self-adapts from there via CSA. |
+| `n_iterations` | `100` | Number of generations to run. | CMA-ES often needs fewer iterations than DE or PSO to converge on ill-conditioned problems, since its adaptive step size gets the search direction right faster. |
 
 ## Example
 
 ```python
 from colonyx import AutoColony
 
+def sphere(x):
+    return sum(xi * xi for xi in x)
+
 optimizer = AutoColony(mode="cmaes", n_iterations=100, cmaes_sigma=0.5, random_state=7)
-optimizer.fit(lambda x: sum(v * v for v in x), bounds=[(-5, 5), (-5, 5)])
+optimizer.fit(sphere, bounds=[(-5, 5), (-5, 5)])
+
+optimizer.predict()  # best position found, ~ [0, 0]
+optimizer.score()    # objective value at that position, ~ 0
 ```
 
-Using the Rust class directly, the same parameter is `sigma`:
+Using the Rust class directly, the same parameter is named `sigma` instead of `cmaes_sigma`:
 
 ```python
 from colonyx._colonyx import CmaEsOptimizer
@@ -135,10 +124,8 @@ from colonyx._colonyx import CmaEsOptimizer
 optimizer = CmaEsOptimizer(n_individuals=40, n_iterations=100, sigma=0.5, random_state=7)
 ```
 
-!!! tip "Parallel fitness evaluation"
-    Each generation's `n_individuals` candidates are evaluated in parallel
-    (via Rayon) before ranking, since canonical CMA-ES never lets one
-    candidate's fitness influence another's within the same generation. This
-    is a real speedup when the objective is CPU-heavy — a plain Python
-    objective still serializes on the GIL, but one that spends its time
-    inside NumPy/SciPy/C-extension code (which releases the GIL) benefits.
+## Further reading
+
+- Hansen, N. and Ostermeier, A. (2001). *Completely Derandomized Self-Adaptation in Evolution Strategies*. Evolutionary Computation.
+- [Algorithms overview](../algorithms.md) — compare CMA-ES against every other algorithm colonyx ships.
+- [AutoColony API reference](../autocolony-api.md) — the unified `mode=` interface used above.
