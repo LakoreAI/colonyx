@@ -15,7 +15,7 @@ description: "colonyx is a Python library with a Rust core for swarm intelligenc
 
 <p align="center">
   <a href="https://pypi.org/project/colonyx/"><img src="https://img.shields.io/pypi/v/colonyx" alt="PyPI version"></a>
-  <a href="https://github.com/LakoreAI/colonyx/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+  <a href="https://github.com/LakoreAI/colonyx/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache License 2.0"></a>
   <a href="https://github.com/LakoreAI/colonyx"><img src="https://img.shields.io/badge/repo-GitHub-181717?logo=github" alt="GitHub repo"></a>
 </p>
 
@@ -159,4 +159,4 @@ Yes — `pip install colonyx` pulls a prebuilt wheel with the compiled `colonyx.
 
 ## License
 
-MIT
+Apache License 2.0 — see [LICENSE](https://github.com/LakoreAI/colonyx/blob/main/LICENSE) on GitHub.
